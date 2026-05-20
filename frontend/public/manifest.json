@@ -1,0 +1,19 @@
+{
+  "name": "LandGuard Uganda",
+  "short_name": "LandGuard",
+  "description": "Tamper-evident Ugandan land titles, verifiable by anyone.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f1f9f3",
+  "theme_color": "#235b41",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

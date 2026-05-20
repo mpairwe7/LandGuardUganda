@@ -1,0 +1,59 @@
+@media print {
+  /* Hide application chrome — only the document remains. */
+  .no-print,
+  nav,
+  aside,
+  .officer-header,
+  .citizen-header,
+  header[role="banner"],
+  footer[role="contentinfo"] {
+    display: none !important;
+  }
+
+  /* Force a printable canvas. */
+  html, body {
+    background: white !important;
+    color: black !important;
+  }
+  body {
+    margin: 0 !important;
+  }
+
+  /* No shadows, no decorative borders. */
+  .shadow-card,
+  .shadow-elevated,
+  .shadow-document {
+    box-shadow: none !important;
+  }
+
+  /* Page breaks: each title certificate is one page. */
+  .print-page {
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+  .print-page:last-child {
+    page-break-after: auto;
+  }
+
+  /* A4 portrait by default; certificate renders edge-to-edge. */
+  @page {
+    size: A4 portrait;
+    margin: 18mm 22mm;
+  }
+
+  /* Hyperlinks become plain text — show their URL after the text. */
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 90%;
+    color: #555;
+  }
+  a[href^="#"]:after,
+  a[href^="javascript:"]:after {
+    content: "";
+  }
+
+  /* Keep monospace hashes readable. */
+  code, .font-mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+  }
+}

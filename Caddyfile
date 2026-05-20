@@ -1,0 +1,32 @@
+{
+    auto_https off
+    admin off
+    log {
+        format json
+    }
+}
+
+# Local default; override via env var for staging/production deployments.
+{$LANDGUARD_HOST:localhost} {
+    encode zstd gzip
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(self), microphone=()"
+        Content-Security-Policy "default-src 'self'; img-src 'self' data: https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://tile.openstreetmap.org; font-src 'self' data:; frame-ancestors 'none'"
+    }
+
+    @api path /api/* /healthz /readyz /metrics
+    handle @api {
+        reverse_proxy backend:8000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Request-Id {>X-Request-Id}
+        }
+    }
+
+    handle {
+        reverse_proxy frontend:3000
+    }
+}

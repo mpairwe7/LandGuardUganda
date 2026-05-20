@@ -1,0 +1,212 @@
+name: landguard
+
+x-base-security: &security
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    environment:
+      POSTGRES_DB: landguard
+      POSTGRES_USER: landguard
+      POSTGRES_PASSWORD: landguard
+    volumes:
+      - landguard_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U landguard"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    <<: *security
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "60", "1"]
+    volumes:
+      - landguard_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    <<: *security
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    entrypoint: ["anvil"]
+    command:
+      [
+        "--host", "0.0.0.0",
+        "--chain-id", "31337",
+        "--block-time", "2",
+        "--accounts", "10",
+        "--balance", "10000",
+        "--silent"
+      ]
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "wget -q -O- --post-data='{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_blockNumber\",\"params\":[]}' --header='content-type: application/json' http://localhost:8545 | grep -q result"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    profiles: ["", "default", "anvil"]
+    <<: *security
+
+  contract-deploy:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      anvil:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      DB_BACKEND: sqlite
+      BLOCKCHAIN_PROVIDER: anvil
+      ANVIL_RPC_URL: http://anvil:8545
+      ANVIL_CHAIN_ID: 31337
+      REGISTRAR_PRIVATE_KEY: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      CONTRACT_ADDRESS_FILE: /app/data_store/contract_address.json
+      JWT_HS256_SECRET: this-is-a-dev-only-secret-thirty-two-bytes
+      PII_ENCRYPTION_KEY: dGhpc19pc19hX2RldmVsb3BtZW50X29ubHlfa2V5X3JlcGxhY2VfaXRfbm93
+      MULTISIG_ENABLED: "${MULTISIG_ENABLED:-false}"
+    entrypoint:
+      - python
+      - scripts/deploy_contract.py
+    volumes:
+      - landguard_data:/app/data_store
+      - ./contracts:/contracts:ro
+    profiles: ["default", "anvil"]
+    restart: "no"
+
+  co-signer:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      anvil:
+        condition: service_healthy
+      contract-deploy:
+        condition: service_completed_successfully
+    environment:
+      APP_ENV: development
+      DB_BACKEND: sqlite
+      SQLITE_PATH: /app/data_store/landguard.db
+      BLOCKCHAIN_PROVIDER: anvil
+      ANVIL_RPC_URL: http://anvil:8545
+      ANVIL_CHAIN_ID: 31337
+      REGISTRAR_PRIVATE_KEY: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      CONTRACT_ADDRESS_FILE: /app/data_store/contract_address.json
+      MULTISIG_ENABLED: "true"
+      JWT_HS256_SECRET: this-is-a-dev-only-secret-thirty-two-bytes
+      PII_ENCRYPTION_KEY: dGhpc19pc19hX2RldmVsb3BtZW50X29ubHlfa2V5X3JlcGxhY2VfaXRfbm93
+    entrypoint: ["python", "scripts/co_sign_daemon.py"]
+    volumes:
+      - landguard_data:/app/data_store
+    profiles: ["multisig"]
+    <<: *security
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      anvil:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      DEMO_MODE: "true"
+      DB_BACKEND: sqlite
+      SQLITE_PATH: /app/data_store/landguard.db
+      REDIS_URL: redis://redis:6379/0
+      BLOCKCHAIN_PROVIDER: anvil
+      ANVIL_RPC_URL: http://anvil:8545
+      ANVIL_CHAIN_ID: 31337
+      REGISTRAR_PRIVATE_KEY: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      CONTRACT_ADDRESS_FILE: /app/data_store/contract_address.json
+      NIRA_PROVIDER: mock
+      JWT_HS256_SECRET: this-is-a-dev-only-secret-thirty-two-bytes
+      PII_ENCRYPTION_KEY: dGhpc19pc19hX2RldmVsb3BtZW50X29ubHlfa2V5X3JlcGxhY2VfaXRfbm93
+      OTEL_ENABLED: "false"
+      CORS_ALLOW_ORIGINS: "http://localhost:3000,http://frontend:3000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - landguard_data:/app/data_store
+    tmpfs:
+      - /tmp
+    read_only: false  # uv/joblib write to /app at runtime; lock down further in prod.
+    <<: *security
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      BACKEND_URL: http://backend:8000
+      NEXT_PUBLIC_APP_NAME: LandGuard Uganda
+      NEXT_PUBLIC_DEMO_MODE: "true"
+      DEMO_TOKEN: open-sesame-2026
+    ports:
+      - "3000:3000"
+    tmpfs:
+      - /tmp
+    <<: *security
+
+  caddy:
+    image: caddy:2.8-alpine
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - landguard_caddy_data:/data
+      - landguard_caddy_config:/config
+    profiles: ["tls"]
+    <<: *security
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    profiles: ["monitoring"]
+    <<: *security
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3001:3000"
+    volumes:
+      - landguard_grafana:/var/lib/grafana
+    profiles: ["monitoring"]
+    <<: *security
+
+volumes:
+  landguard_pg:
+  landguard_redis:
+  landguard_data:
+  landguard_caddy_data:
+  landguard_caddy_config:
+  landguard_grafana:

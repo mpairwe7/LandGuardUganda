@@ -1,0 +1,253 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+/* -------------------------------------------------------------------------
+ * LandGuard Design System — base layer
+ * ----------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    /* Surface colours via CSS vars so we can theme later without recompiling. */
+    --color-canvas: 249 250 251;     /* slate-50 */
+    --color-surface: 255 255 255;
+    --color-border: 229 231 235;     /* slate-200 */
+    --color-text: 31 41 55;          /* slate-800 */
+    --color-text-muted: 71 85 105;   /* slate-600 */
+    --color-brand: 26 82 35;         /* guard-700 */
+    --color-seal: 232 180 37;        /* seal-400 */
+  }
+
+  html {
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: rgb(var(--color-canvas));
+    color: rgb(var(--color-text));
+  }
+
+  /* Numeric columns line up across rows — essential for land records. */
+  table, .tabular {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /* Accessibility: visible focus ring on every focusable element. */
+  :focus-visible {
+    outline: 2px solid theme("colors.guard.600");
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Headings inherit IBM Plex Sans. The serif voice is opt-in via .font-serif. */
+  h1, h2, h3, h4, h5, h6 {
+    color: theme("colors.slate.900");
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Components — canonical building blocks
+ * ----------------------------------------------------------------------- */
+
+@layer components {
+
+  /* ---- Cards (three weights) ---- */
+
+  .card-surface {
+    @apply rounded-lg border border-slate-200 bg-white p-6;
+  }
+
+  .card-elevated {
+    @apply rounded-lg border border-slate-200 bg-white p-6 shadow-card;
+  }
+
+  .card-document {
+    @apply rounded-md border-2 border-seal-100 bg-white p-10 shadow-document;
+  }
+
+  /* ---- Buttons (the only four allowed) ----
+   * v4 does not allow @apply'ing a custom class, so the shared button base
+   * is inlined into every variant. Keep these in sync. */
+
+  .btn-primary {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium
+           transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:cursor-not-allowed disabled:opacity-50
+           bg-guard-700 text-white hover:bg-guard-600 focus-visible:ring-guard-600;
+  }
+  .btn-secondary {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium
+           transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:cursor-not-allowed disabled:opacity-50
+           border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 focus-visible:ring-guard-600;
+  }
+  .btn-tertiary {
+    @apply inline-flex items-center gap-1 text-sm font-medium text-guard-700
+           underline-offset-4 hover:underline focus-visible:underline
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-destructive {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium
+           transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:cursor-not-allowed disabled:opacity-50
+           bg-status-frozen text-white hover:bg-red-800 focus-visible:ring-status-frozen;
+  }
+
+  /* ---- Status pills ----
+   * Same v4 constraint: each variant inlines the shared pill base. */
+
+  .pill-verified {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-status-verified/10 text-status-verified ring-1 ring-inset ring-status-verified/30;
+  }
+  .pill-pending {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-status-pending/10 text-status-pending ring-1 ring-inset ring-status-pending/30;
+  }
+  .pill-flag {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-status-flag/10 text-status-flag ring-1 ring-inset ring-status-flag/30;
+  }
+  .pill-frozen {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-status-frozen/10 text-status-frozen ring-1 ring-inset ring-status-frozen/30;
+  }
+  .pill-chain {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-status-chain/10 text-status-chain ring-1 ring-inset ring-status-chain/30;
+  }
+  .pill-neutral {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-slate-100 text-status-neutral ring-1 ring-inset ring-slate-200;
+  }
+
+  /* ---- Form fields ---- */
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+  .field-input {
+    @apply block h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm
+           placeholder:text-slate-400 focus:border-guard-600 focus:outline-none focus:ring-2 focus:ring-guard-600/20;
+  }
+  .field-input-mono {
+    @apply block h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-mono
+           placeholder:text-slate-400 focus:border-guard-600 focus:outline-none focus:ring-2 focus:ring-guard-600/20;
+  }
+  .field-help {
+    @apply mt-1 text-xs text-slate-500;
+  }
+  .field-error {
+    @apply mt-1 text-xs text-status-frozen;
+  }
+
+  /* ---- Data tables ---- */
+
+  .data-table {
+    @apply w-full border-collapse text-sm;
+  }
+  .data-table thead th {
+    @apply sticky top-0 bg-slate-100 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-600
+           first:rounded-tl-md last:rounded-tr-md;
+  }
+  .data-table tbody td {
+    @apply border-t border-slate-200 px-4 py-3 align-middle text-slate-700;
+  }
+  .data-table tbody tr:nth-child(even) {
+    @apply bg-slate-50/60;
+  }
+  .data-table tbody tr:hover {
+    @apply bg-guard-50;
+  }
+  .data-table td.identifier {
+    @apply font-mono font-semibold text-slate-900;
+  }
+  .data-table td.numeric {
+    @apply text-right tabular-nums;
+  }
+  .data-table td.actions {
+    @apply text-center;
+  }
+
+  /* ---- State left-border accents on cards ---- */
+
+  .state-pending  { @apply border-l-2 border-l-status-pending; }
+  .state-flag     { @apply border-l-2 border-l-status-flag; }
+  .state-frozen   { @apply border-l-2 border-l-status-frozen; }
+  .state-verified { @apply border-l-2 border-l-status-verified; }
+
+  /* ---- Officer console chrome ---- */
+
+  .officer-header {
+    @apply sticky top-0 z-30 flex h-12 items-center justify-between border-b border-guard-900 bg-guard-950 px-6 text-white;
+  }
+  .officer-sidebar {
+    @apply h-full bg-guard-900 text-slate-100;
+  }
+  .officer-nav-link {
+    @apply flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-slate-300 transition-colors
+           hover:bg-guard-800 hover:text-white;
+  }
+  .officer-nav-link-active {
+    @apply flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors
+           bg-guard-800 text-white hover:bg-guard-800;
+  }
+
+  /* ---- Citizen surfaces ---- */
+
+  .citizen-header {
+    @apply sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-6;
+  }
+
+  /* ---- Redact mode (officer "screen-share safe" view) ---- */
+
+  .redact .redactable {
+    @apply select-none blur-[6px] transition-[filter];
+  }
+  .redact .redactable:hover {
+    @apply blur-none;
+  }
+
+  /* ---- Legacy aliases ---------------------------------------------------
+   *
+   * These map the old `card` / `badge*` class names used across the codebase
+   * onto the new canonical primitives. New code should prefer `.card-surface`,
+   * `.pill-*`, etc. directly. Removing these would mean editing 30+ files; the
+   * aliases let us keep the design system unified without a giant churn.
+   * --------------------------------------------------------------------- */
+
+  .card { @apply rounded-lg border border-slate-200 bg-white p-6; }
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-slate-100 text-status-neutral ring-1 ring-inset ring-slate-200;
+  }
+  .badge-pending {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-status-pending/10 text-status-pending ring-1 ring-inset ring-status-pending/30;
+  }
+  .badge-anchored {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-status-verified/10 text-status-verified ring-1 ring-inset ring-status-verified/30;
+  }
+
+  /* ---- Document watermark ---- */
+
+  .document-watermark {
+    background-image: repeating-linear-gradient(
+      -30deg,
+      transparent 0 22px,
+      rgba(232, 180, 37, 0.05) 22px 24px
+    );
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Utilities — small one-offs
+ * ----------------------------------------------------------------------- */
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .text-pretty  { text-wrap: pretty; }
+}

@@ -1,0 +1,91 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [{"name": "admin", "type": "address"}],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "REGISTRAR_ROLE",
+    "inputs": [],
+    "outputs": [{"type": "bytes32"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "commitBatch",
+    "inputs": [
+      {"name": "districtId", "type": "uint16"},
+      {"name": "batchId", "type": "bytes32"},
+      {"name": "merkleRoot", "type": "bytes32"}
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "verifyProof",
+    "inputs": [
+      {"name": "batchId", "type": "bytes32"},
+      {"name": "leaf", "type": "bytes32"},
+      {"name": "proof", "type": "bytes32[]"}
+    ],
+    "outputs": [{"type": "bool"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "anchors",
+    "inputs": [{"name": "", "type": "bytes32"}],
+    "outputs": [
+      {"name": "merkleRoot", "type": "bytes32"},
+      {"name": "districtId", "type": "uint16"},
+      {"name": "timestamp", "type": "uint64"},
+      {"name": "registrar", "type": "address"}
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalAnchors",
+    "inputs": [],
+    "outputs": [{"type": "uint256"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "unpause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "AnchorCommitted",
+    "inputs": [
+      {"name": "batchId", "type": "bytes32", "indexed": true},
+      {"name": "districtId", "type": "uint16", "indexed": true},
+      {"name": "merkleRoot", "type": "bytes32", "indexed": false},
+      {"name": "registrar", "type": "address", "indexed": true},
+      {"name": "timestamp", "type": "uint64", "indexed": false}
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "DuplicateBatch",
+    "inputs": [{"name": "batchId", "type": "bytes32"}]
+  },
+  {
+    "type": "error",
+    "name": "EmptyRoot",
+    "inputs": []
+  }
+]

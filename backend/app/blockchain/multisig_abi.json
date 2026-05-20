@@ -1,0 +1,106 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {"name": "_signers", "type": "address[]"},
+      {"name": "_threshold", "type": "uint8"},
+      {"name": "_anchor", "type": "address"}
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "anchor",
+    "inputs": [],
+    "outputs": [{"type": "address"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "threshold",
+    "inputs": [],
+    "outputs": [{"type": "uint8"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isSigner",
+    "inputs": [{"name": "", "type": "address"}],
+    "outputs": [{"type": "bool"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "signersList",
+    "inputs": [],
+    "outputs": [{"type": "address[]"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "proposalIdOf",
+    "inputs": [
+      {"name": "districtId", "type": "uint16"},
+      {"name": "batchId", "type": "bytes32"},
+      {"name": "merkleRoot", "type": "bytes32"}
+    ],
+    "outputs": [{"type": "bytes32"}],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "proposeAndConfirm",
+    "inputs": [
+      {"name": "districtId", "type": "uint16"},
+      {"name": "batchId", "type": "bytes32"},
+      {"name": "merkleRoot", "type": "bytes32"}
+    ],
+    "outputs": [{"name": "proposalId", "type": "bytes32"}],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "proposals",
+    "inputs": [{"name": "", "type": "bytes32"}],
+    "outputs": [
+      {"name": "districtId", "type": "uint16"},
+      {"name": "batchId", "type": "bytes32"},
+      {"name": "merkleRoot", "type": "bytes32"},
+      {"name": "confirmations", "type": "uint8"},
+      {"name": "executed", "type": "bool"},
+      {"name": "proposedAt", "type": "uint64"}
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "ProposalCreated",
+    "inputs": [
+      {"name": "proposalId", "type": "bytes32", "indexed": true},
+      {"name": "districtId", "type": "uint16", "indexed": true},
+      {"name": "batchId", "type": "bytes32", "indexed": true},
+      {"name": "merkleRoot", "type": "bytes32", "indexed": false},
+      {"name": "proposer", "type": "address", "indexed": false}
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ProposalConfirmed",
+    "inputs": [
+      {"name": "proposalId", "type": "bytes32", "indexed": true},
+      {"name": "signer", "type": "address", "indexed": true},
+      {"name": "confirmations", "type": "uint8", "indexed": false}
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ProposalExecuted",
+    "inputs": [
+      {"name": "proposalId", "type": "bytes32", "indexed": true},
+      {"name": "batchId", "type": "bytes32", "indexed": true}
+    ],
+    "anonymous": false
+  }
+]

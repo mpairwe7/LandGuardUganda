@@ -1,0 +1,18 @@
+name: landguard
+
+# Override that targets a real Sepolia testnet instead of local Anvil.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.sepolia.yml up
+
+services:
+  anvil:
+    profiles: ["disabled"]
+
+  contract-deploy:
+    profiles: ["disabled"]
+
+  backend:
+    environment:
+      BLOCKCHAIN_PROVIDER: sepolia
+      SEPOLIA_RPC_URL: "${SEPOLIA_RPC_URL:?Set SEPOLIA_RPC_URL in your shell}"
+      SEPOLIA_CHAIN_ID: "11155111"
+      REGISTRAR_PRIVATE_KEY: "${SEPOLIA_REGISTRAR_PRIVATE_KEY:?Set SEPOLIA_REGISTRAR_PRIVATE_KEY in your shell}"
