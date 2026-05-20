@@ -63,18 +63,32 @@ without smartphone-only access, and without single-key custody.
 
 ## What's inside
 
-- **`backend/`** — FastAPI service: routes, audit ledger, fraud scorer with
-  human-in-the-loop, NIRA client, blockchain client (mock/anvil/sepolia/multisig),
-  USSD + SMS verifier. See [`backend/README.md`](./backend/README.md).
-- **`frontend/`** — Next.js 16 (Bun) UI: public verifier, citizen portal,
-  surveyor map drawer, officer review queue, registrar console, auditor console,
-  demo control panel, printable title certificate with QR.
-- **`contracts/`** — `LandRegistryAnchor.sol` + `MultiSigRegistrar.sol` with
-  Foundry tests.
-- **`docs/`** — Architecture, custody model, AI ethics charter, MOU template,
-  audit package, threat model, USSD deployment guide, ADRs.
-- **`scripts/`** — Cross-cutting dev/demo orchestration.
-- **`monitoring/`** — Prometheus + Grafana for showcase observability.
+| Path | Contents | Setup guide |
+| --- | --- | --- |
+| **`backend/`** | FastAPI service: routes, audit ledger, fraud scorer with human-in-the-loop, NIRA client, blockchain client (mock/anvil/sepolia/multisig), USSD + SMS verifier | [`backend/README.md`](./backend/README.md) |
+| **`frontend/`** | Next.js 16 (Bun) UI: public verifier, citizen portal, surveyor map drawer, officer review queue, registrar console, auditor console, demo control panel, printable title certificate | [`frontend/README.md`](./frontend/README.md) |
+| **`contracts/`** | `LandRegistryAnchor.sol` + `MultiSigRegistrar.sol` with Foundry tests, OpenZeppelin AccessControl + Pausable | [`contracts/README.md`](./contracts/README.md) |
+| **`docs/`** | Architecture, requirements + evaluation mapping, design system, custody, AI ethics, MOU template, audit package, threat model, USSD deployment, ADRs | — |
+| **`scripts/`** | Cross-cutting dev/demo orchestration | — |
+| **`monitoring/`** | Prometheus + Grafana + OTel collector configs | — |
+
+## Documentation index
+
+For an auditor or evaluator, read in this order:
+
+1. **[`docs/REQUIREMENTS.md`](./docs/REQUIREMENTS.md)** — system requirements, capacity targets, compliance posture, and the seven evaluation criteria mapped to evidence files.
+2. **[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)** — full architecture, data flow, tenancy model, fraud detection, resilience, threat model, observability, testing strategy, migration paths.
+3. **[`docs/DESIGN_SYSTEM.md`](./docs/DESIGN_SYSTEM.md)** — the UI/UX contract (Ugandan-government visual identity, IBM Plex typography, four-button discipline, AI-ethics colour rules).
+4. **[`docs/audit/AUDIT_PACKAGE.md`](./docs/audit/AUDIT_PACKAGE.md)** — one-page index pointing at every claim's reproducible evidence.
+5. **[`docs/audit/THREAT_MODEL.md`](./docs/audit/THREAT_MODEL.md)** — full threat model with mitigations.
+6. **[`docs/AI_ETHICS_CHARTER.md`](./docs/AI_ETHICS_CHARTER.md)** — the policy behind human-in-the-loop fraud review.
+7. **[`docs/CUSTODY.md`](./docs/CUSTODY.md)** — 3-of-5 multi-sig signer plan.
+8. **[`docs/GOVERNANCE.md`](./docs/GOVERNANCE.md)** — DPPA-2019 compliance posture.
+9. **[`docs/USSD_DEPLOYMENT.md`](./docs/USSD_DEPLOYMENT.md)** — USSD pathway deployment guide.
+10. **[`docs/moa-templates/MoLHUD-Mityana-Pilot-MOU.md`](./docs/moa-templates/MoLHUD-Mityana-Pilot-MOU.md)** — drop-in MOU template for the Mityana pilot.
+11. **[`docs/adr/`](./docs/adr/)** — architecture decision records (e.g. ADR-0001 dual-Merkle regime).
+12. **[`DEMO_RUNBOOK.md`](./DEMO_RUNBOOK.md)** — 25 June 2026 showcase script + recovery procedures.
+13. **[`QUICKSTART.md`](./QUICKSTART.md)** — five-minute local bring-up.
 
 ## Five-minute setup
 
