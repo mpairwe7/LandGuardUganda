@@ -1,4 +1,12 @@
-"""JWT verification (HS256 dev / RS256 OIDC) for LandGuard."""
+"""JWT verification (HS256 dev / RS256 OIDC) for LandGuard.
+
+Backed by PyJWT (+ cryptography for RSA). We intentionally do *not* use
+python-jose because it pulls in the ``ecdsa`` package, which has an
+unpatched CVE (CVE-2024-23342, Minerva timing-attack). We do not sign
+with ECDSA — JWT auth is HS256 (dev) or RS256 (prod OIDC) — but
+eliminating the transitive dep is cleaner than documenting an
+inapplicable advisory.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +15,9 @@ import time
 from typing import Any
 
 import httpx
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
+from jwt.algorithms import RSAAlgorithm
 
 from app.config import get_settings
 
@@ -38,14 +48,35 @@ class JWTVerifier:
         self._jwks_fetched_at = time.time()
         return self._jwks_cache
 
+    @staticmethod
+    def _key_for(jwks: dict[str, Any], kid: str | None) -> Any:
+        """Return a PyJWT-compatible RSA key for the token's kid.
+
+        If the token carries no kid and there is exactly one key in the
+        JWKS, use it (some OPs publish a single key without kids).
+        """
+        keys = jwks.get("keys", [])
+        if not keys:
+            raise JWTAuthError("JWKS contains no keys")
+        if kid is None:
+            if len(keys) == 1:
+                return RSAAlgorithm.from_jwk(keys[0])
+            raise JWTAuthError("token missing kid and JWKS has multiple keys")
+        for jwk in keys:
+            if jwk.get("kid") == kid:
+                return RSAAlgorithm.from_jwk(jwk)
+        raise JWTAuthError(f"no matching JWKS key for kid={kid}")
+
     async def verify(self, token: str) -> dict[str, Any]:
         settings = self._settings
         try:
             if settings.auth_mode == "oidc":
+                header = jwt.get_unverified_header(token)
                 jwks = await self._get_jwks()
+                key = self._key_for(jwks, header.get("kid"))
                 claims = jwt.decode(
                     token,
-                    jwks,
+                    key,
                     algorithms=["RS256"],
                     audience=settings.jwt_audience,
                     issuer=settings.jwt_issuer,
@@ -58,8 +89,10 @@ class JWTVerifier:
                     audience=settings.jwt_audience,
                     issuer=settings.jwt_issuer,
                 )
-        except JWTError as exc:
+        except InvalidTokenError as exc:
             raise JWTAuthError(f"invalid token: {exc}") from exc
+        if not isinstance(claims, dict):
+            raise JWTAuthError("token payload is not an object")
         return claims
 
 

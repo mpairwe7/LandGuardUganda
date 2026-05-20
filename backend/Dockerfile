@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     useradd --create-home --uid 10001 landguard
 
 WORKDIR /app
-COPY pyproject.toml ./
+COPY pyproject.toml README.md ./
 RUN uv pip install --system .
 
 COPY app ./app
