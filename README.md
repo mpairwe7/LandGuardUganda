@@ -97,6 +97,7 @@ For an auditor, evaluator, or maintainer, in depth:
 15. **[`docs/CUSTODY.md`](./docs/CUSTODY.md)** — 3-of-5 multi-sig signer plan.
 16. **[`docs/GOVERNANCE.md`](./docs/GOVERNANCE.md)** — DPPA-2019 compliance posture.
 17. **[`docs/USSD_DEPLOYMENT.md`](./docs/USSD_DEPLOYMENT.md)** — USSD pathway deployment guide.
+17b. **[`docs/CRANE_CLOUD_DEPLOYMENT.md`](./docs/CRANE_CLOUD_DEPLOYMENT.md)** — Crane Cloud operator guide (clusters, API, secrets, troubleshooting). Adapted from `mpairwe7/MLOPS_V1`'s deployment doc.
 18. **[`docs/moa-templates/MoLHUD-Mityana-Pilot-MOU.md`](./docs/moa-templates/MoLHUD-Mityana-Pilot-MOU.md)** — drop-in pilot MOU template.
 19. **[`docs/adr/`](./docs/adr/)** — architecture decision records: 0001 dual-Merkle, 0002 zero-trust posture, 0003 regional-chain migration.
 20. **[`DEMO_RUNBOOK.md`](./DEMO_RUNBOOK.md)** — 25 June 2026 showcase script + recovery procedures.
@@ -109,6 +110,13 @@ For an auditor, evaluator, or maintainer, in depth:
 | `bash scripts/generate_sbom.sh` | `evidence/sbom/*.json` (CycloneDX SBOMs + SHA-256) | `docs/IMPACT_EVIDENCE.md` §3.1 |
 | `bash scripts/lighthouse_ci.sh` | `evidence/lighthouse/<ts>/*.json|.html` | `docs/IMPACT_EVIDENCE.md` §1.1 |
 | `bash scripts/load_test.sh` | `evidence/load/<ts>/summary.json` | `docs/SLA_TARGETS.md` §2 |
+
+**Deployment scripts** (run from your interactive shell):
+
+| Script | What it does | Reference |
+|---|---|---|
+| `bash scripts/bootstrap_cranecloud.sh` | Logs into Crane Cloud, creates LandGuard project on RENU, deploys backend + frontend apps. Writes UUIDs + URLs to `/tmp/landguard-cranecloud-bootstrap.env` for the next script. Idempotent. | [`docs/CRANE_CLOUD_DEPLOYMENT.md`](./docs/CRANE_CLOUD_DEPLOYMENT.md) §"Three-command bootstrap" |
+| `bash scripts/setup_github_secrets.sh` | Walks through setting the 8 GitHub secrets via `gh secret set --body -` (interactive, no echo). Auto-fills UUIDs from the bootstrap summary and known mpairwe7 defaults. | [`docs/CRANE_CLOUD_DEPLOYMENT.md`](./docs/CRANE_CLOUD_DEPLOYMENT.md) §5 |
 
 ## Five-minute setup
 

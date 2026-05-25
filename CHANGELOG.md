@@ -8,6 +8,52 @@ versioning is calendar-style (`YYYY-MM-DD`) until 1.0.
 
 ---
 
+## 2026-05-26 — Crane Cloud bootstrap automation + deployment doc
+
+Operationalises the CI/CD pipeline with two scripts and a deployment
+reference, all adapted from `mpairwe7/MLOPS_V1`'s 676-line
+`docs/22-crane-cloud-deployment.md` and proven against the same
+Crane Cloud account (`mpairwelauben75@gmail.com`) and Docker Hub
+namespace (`landwind`) used by OptiscanAI:
+
+  - `scripts/bootstrap_cranecloud.sh` — one-shot API-driven creation
+    of the LandGuard project on RENU cluster + both apps
+    (`landguard-backend`, `landguard-frontend`). No CLI dependency.
+    Prompts for password via `read -s` (no echo, never enters argv
+    or transcript). Writes non-secret UUIDs + URLs to
+    `/tmp/landguard-cranecloud-bootstrap.env` for the next script.
+
+  - `scripts/setup_github_secrets.sh` enhanced to:
+      - Source `/tmp/landguard-cranecloud-bootstrap.env` automatically
+        when present — UUIDs and URLs are pre-filled so the operator
+        only types the 3 actual secrets (DOCKERHUB_TOKEN,
+        CRANE_CLOUD_PASSWORD).
+      - Pre-fill known mpairwe7 defaults: DOCKERHUB_USERNAME=`landwind`,
+        CRANE_CLOUD_EMAIL=`mpairwelauben75@gmail.com` (lowercase as
+        required by api.cranecloud.io's case-sensitive login).
+      - Distinguish secret vs non-secret prompts: non-secrets echo so
+        the operator can see what they're confirming; secrets never
+        echo.
+
+  - `docs/CRANE_CLOUD_DEPLOYMENT.md` — LandGuard-specific operator
+    guide. Documents:
+      - Three-command bootstrap (~6–8 min to live deploy)
+      - Available clusters (RENU vs AHUMAIN — current health status)
+      - Full API reference (POST /users/login, PATCH /apps/{id} etc.)
+      - SHA-suffix tagging discipline (why floating tags don't trigger
+        pod rollover and the workflow always PATCHes
+        `:<tag>-<sha7>`)
+      - All env vars passed to each Crane Cloud app + why
+      - Deploy-only flow for env-var changes without rebuild
+      - Troubleshooting per the OptiscanAI deployment history
+
+The bootstrap script intentionally seeds the backend with weak
+JWT_HS256_SECRET and PII_ENCRYPTION_KEY values that trip
+`Settings.assert_prod_safety()` at startup — so the operator
+MUST rotate them via the Crane Cloud dashboard after bootstrap
+before the backend will accept production traffic. The dashboard
+rotation is a one-time-per-environment step.
+
 ## 2026-05-26 — CI/CD rewired to direct Crane Cloud HTTP API (OptiscanAI pattern)
 
 The previous `deploy-cranecloud.yml` depended on the `cranecloud` Python

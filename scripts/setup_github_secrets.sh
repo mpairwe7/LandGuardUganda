@@ -28,6 +28,22 @@ REPO="mpairwe7/LandGuardUganda"
 ENV_NAME="production"
 ROTATE="${1:-}"
 
+# Known non-secret defaults sourced from mpairwe7/MLOPS_V1/docs/22-crane-cloud-deployment.md
+# §"Docker Hub Credentials" and §"Crane Cloud Platform Reference". The user
+# can press Enter to accept them rather than retype.
+DEFAULT_DOCKERHUB_USERNAME="landwind"
+DEFAULT_CRANE_CLOUD_EMAIL="mpairwelauben75@gmail.com"
+
+# Auto-source non-secret values from the bootstrap script's output file
+# (scripts/bootstrap_cranecloud.sh writes UUIDs + URLs there). Then the
+# user only needs to type the actual secrets (passwords/tokens).
+BOOTSTRAP_SUMMARY="${LANDGUARD_BOOTSTRAP_SUMMARY:-/tmp/landguard-cranecloud-bootstrap.env}"
+if [ -f "$BOOTSTRAP_SUMMARY" ]; then
+  echo "→ Found bootstrap summary at $BOOTSTRAP_SUMMARY — sourcing non-secret values."
+  # shellcheck disable=SC1090
+  source "$BOOTSTRAP_SUMMARY"
+fi
+
 GH_BIN="$(command -v gh 2>/dev/null || echo /home/developer/bin/gh)"
 if ! "$GH_BIN" --version >/dev/null 2>&1; then
   echo "✗ GitHub CLI not found. Install: https://cli.github.com/manual/installation"
@@ -42,7 +58,9 @@ fi
 prompt_and_set() {
   local name="$1"
   local hint="$2"
-  local scope="$3"   # "repo" or "env"
+  local scope="$3"          # "repo" or "env"
+  local default="${4:-}"    # optional default value (non-secret values only)
+  local secret="${5:-true}" # "true" → no echo; "false" → echoed (usernames, UUIDs)
   local existing
   local cmd
 
@@ -62,12 +80,30 @@ prompt_and_set() {
   echo
   echo "→ $name"
   echo "  ($hint)"
-  echo -n "  Value (will not be echoed): "
-  IFS= read -rs value
-  echo
+  if [ "$secret" = "true" ]; then
+    if [ -n "$default" ]; then
+      echo -n "  Value [Enter for default] (no echo): "
+    else
+      echo -n "  Value (no echo): "
+    fi
+    IFS= read -rs value
+    echo
+  else
+    if [ -n "$default" ]; then
+      echo -n "  Value [Enter for default: $default]: "
+    else
+      echo -n "  Value: "
+    fi
+    IFS= read -r value
+  fi
   if [ -z "${value:-}" ]; then
-    echo "  · skipped (no value entered)"
-    return 0
+    if [ -n "$default" ]; then
+      value="$default"
+      echo "  · using default"
+    else
+      echo "  · skipped (no value entered)"
+      return 0
+    fi
   fi
   printf '%s' "$value" | "${cmd[@]}" --body -
   unset value
@@ -85,32 +121,32 @@ echo "they never enter argv, history, or stdout."
 echo
 echo "─── Repository-level secrets (visible to all workflows) ───"
 prompt_and_set DOCKERHUB_USERNAME \
-  "your Docker Hub username — e.g. 'landwind'" \
-  repo
+  "Docker Hub username (mpairwe7 uses 'landwind' across MLOps projects per MLOPS_V1 docs)" \
+  repo "${DOCKERHUB_USERNAME:-$DEFAULT_DOCKERHUB_USERNAME}" false
 prompt_and_set DOCKERHUB_TOKEN \
-  "Docker Hub PAT with Read/Write/Delete scope — generate at hub.docker.com → Account Settings → Personal access tokens" \
+  "Docker Hub PAT (Read/Write/Delete) — hub.docker.com → Account Settings → Personal access tokens" \
   repo
 
 echo
 echo "─── production environment secrets (used by deploy-cranecloud.yml) ───"
 prompt_and_set CRANE_CLOUD_EMAIL \
-  "Crane Cloud account email" \
-  env
+  "Crane Cloud account email — MUST be lowercase per api.cranecloud.io behaviour" \
+  env "${CRANE_CLOUD_EMAIL:-$DEFAULT_CRANE_CLOUD_EMAIL}" false
 prompt_and_set CRANE_CLOUD_PASSWORD \
-  "Crane Cloud account password — POSTed in JSON body to api.cranecloud.io/users/login" \
+  "Crane Cloud password — POSTed in JSON body to api.cranecloud.io/users/login" \
   env
 prompt_and_set CRANE_CLOUD_BACKEND_APP_ID \
-  "UUID of the Crane Cloud app for the FastAPI backend (cranecloud apps list)" \
-  env
+  "Crane Cloud app UUID for FastAPI backend (auto-filled if you ran scripts/bootstrap_cranecloud.sh)" \
+  env "${CRANE_CLOUD_BACKEND_APP_ID:-}" false
 prompt_and_set CRANE_CLOUD_FRONTEND_APP_ID \
-  "UUID of the Crane Cloud app for the Next.js frontend (cranecloud apps list)" \
-  env
+  "Crane Cloud app UUID for Next.js frontend" \
+  env "${CRANE_CLOUD_FRONTEND_APP_ID:-}" false
 prompt_and_set CRANE_CLOUD_BACKEND_URL \
-  "Public URL of the backend app (e.g. https://landguard-backend.cranecloud.ug) — used for /healthz polling. Optional." \
-  env
+  "Backend public URL (e.g. https://landguard-backend-<id>.renu-01.cranecloud.io) for /healthz polling" \
+  env "${CRANE_CLOUD_BACKEND_URL:-}" false
 prompt_and_set CRANE_CLOUD_FRONTEND_URL \
-  "Public URL of the frontend app (e.g. https://landguard.cranecloud.ug) — used for /api/health polling. Optional." \
-  env
+  "Frontend public URL for /api/health polling" \
+  env "${CRANE_CLOUD_FRONTEND_URL:-}" false
 
 echo
 echo "─── Verify ───"
