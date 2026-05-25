@@ -106,7 +106,12 @@ jobs:
         run: |
           set -euo pipefail
           SHA7="${GITHUB_SHA:0:7}"
-          IMAGE="$DOCKERHUB_USERNAME/landguard-uganda-backend:${{ inputs.image_tag }}-${SHA7}"
+          # docker/metadata-action's type=semver,pattern={{version}} strips
+          # the leading 'v' from tags like v0.1.0-showcase, so the published
+          # tags are 0.1.0-showcase-<sha7>. Mirror that here.
+          TAG="${{ inputs.image_tag }}"
+          TAG="${TAG#v}"
+          IMAGE="$DOCKERHUB_USERNAME/landguard-uganda-backend:${TAG}-${SHA7}"
           echo "→ Updating backend ($APP_ID) → $IMAGE"
           STATUS=$(curl -s -o /tmp/backend-resp.json -w "%{http_code}" -X PATCH \
             "$CRANE_CLOUD_API/apps/$APP_ID" \
@@ -130,7 +135,9 @@ jobs:
         run: |
           set -euo pipefail
           SHA7="${GITHUB_SHA:0:7}"
-          IMAGE="$DOCKERHUB_USERNAME/landguard-uganda-frontend:${{ inputs.image_tag }}-${SHA7}"
+          TAG="${{ inputs.image_tag }}"
+          TAG="${TAG#v}"
+          IMAGE="$DOCKERHUB_USERNAME/landguard-uganda-frontend:${TAG}-${SHA7}"
           echo "→ Updating frontend ($APP_ID) → $IMAGE"
           STATUS=$(curl -s -o /tmp/frontend-resp.json -w "%{http_code}" -X PATCH \
             "$CRANE_CLOUD_API/apps/$APP_ID" \
