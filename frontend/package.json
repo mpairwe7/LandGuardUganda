@@ -64,7 +64,7 @@
     "eslint-config-next": "16.2.3",
     "prettier": "^3.3.0",
     "prettier-plugin-tailwindcss": "^0.6.0",
-    "vitest": "^2.1.0",
+    "vitest": "^4.1.7",
     "@vitejs/plugin-react": "^4.3.0",
     "@testing-library/react": "^16.0.0",
     "@testing-library/jest-dom": "^6.5.0",
