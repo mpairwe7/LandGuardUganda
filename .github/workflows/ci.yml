@@ -1,0 +1,194 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Python 3.12)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.x"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      - name: Lint (ruff)
+        run: uv run ruff check app tests
+
+      - name: Type check (mypy)
+        run: uv run mypy app
+        continue-on-error: true   # strict baseline in progress; surface without blocking
+
+      - name: Tests (pytest)
+        run: uv run pytest -q --tb=short
+
+  contracts:
+    name: Contracts (Foundry)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Forge build
+        run: forge build --sizes
+
+      - name: Forge test
+        run: forge test -vvv
+
+      - name: Forge coverage (informational)
+        run: forge coverage --report summary
+        continue-on-error: true
+
+  frontend:
+    name: Frontend (Bun + Next.js 16)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.x"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
+        continue-on-error: true
+
+      - name: Build
+        run: bun run build
+        env:
+          BACKEND_URL: http://localhost:8000
+          NEXT_PUBLIC_APP_NAME: LandGuard Uganda
+          NEXT_PUBLIC_DEFAULT_DISTRICT_ID: "3"
+
+  dependency-audit:
+    name: Dependency audit (OSV)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run OSV-Scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v1.9.1
+        with:
+          scan-args: |-
+            --lockfile=backend/uv.lock
+            --lockfile=frontend/bun.lock
+            --recursive
+        continue-on-error: true   # don't fail on transient advisory-feed issues; surface in checks
+
+  sbom:
+    name: SBOM generate + content-address
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install uv (backend SBOM)
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.x"
+
+      - name: Install Bun (frontend SBOM)
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.x"
+
+      - name: Set up Node (cyclonedx-npm CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install backend deps (for cyclonedx-py environment scan)
+        run: |
+          cd backend
+          uv sync --frozen
+
+      - name: Install frontend deps (for cyclonedx-npm)
+        run: |
+          cd frontend
+          bun install --frozen-lockfile
+
+      - name: Generate SBOMs
+        run: bash scripts/generate_sbom.sh
+
+      - name: Upload SBOM artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: evidence/sbom/
+          retention-days: 90
+
+  # Verify Dockerfiles still build on every PR. We do not push here —
+  # the GHCR push happens in build-push.yml on main + v* tags only.
+  docker-build:
+    name: Docker build verify (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: backend
+            context: backend
+            dockerfile: backend/Dockerfile
+          - app: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: landguard-${{ matrix.app }}:ci-verify
+          cache-from: type=gha,scope=${{ matrix.app }}-verify
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}-verify

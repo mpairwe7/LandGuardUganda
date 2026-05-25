@@ -1,0 +1,138 @@
+# Crane Cloud deployment manifest — LandGuard Uganda
+#
+# This file is the source of truth for *what* gets deployed to Crane Cloud.
+# It contains:
+#   - App identification (name, image, port, replicas)
+#   - The NAMES of environment variables the apps expect.
+#
+# It does NOT contain secret values. Secrets are resolved at deploy time
+# from the shell environment (loaded from `environments/<env>.env`, gitignored).
+#
+# The `cranecloud` CLI does not consume this YAML directly. The Makefile
+# (`infra/cranecloud/Makefile`) treats this manifest as a human-readable
+# spec and passes the values via `cranecloud apps deploy` flags. Keep
+# the two in sync when you change either.
+#
+# Last reviewed: 2026-05-25.
+
+project:
+  name: landguard-uganda
+  # The Crane Cloud project_id (UUID) is fetched once with
+  # `cranecloud projects list` and stored in environments/<env>.env as
+  # CRANECLOUD_PROJECT_ID. Do not paste it here.
+
+apps:
+
+  # ── Backend ────────────────────────────────────────────────────────────
+  backend:
+    name: landguard-backend
+    image: ghcr.io/mpairwe7/landguard-uganda-backend
+    # Image tag is environment-specific (set in environments/<env>.env as
+    # BACKEND_IMAGE_TAG); the Makefile composes `${image}:${tag}` at deploy.
+    port: 8000
+    replicas: 2          # pilot default; raise to 4 (regional) / 12 (national rollout)
+    command: ""          # use container's default CMD (uvicorn via Dockerfile)
+
+    # Environment variables expected by the application.
+    # Names only — values come from environments/<env>.env at deploy time.
+    env:
+      # ── Application ──
+      - APP_ENV                                # development / staging / pilot / production
+      - APP_NAME                               # default: landguard-backend
+      - LOG_LEVEL                              # INFO in pilot, DEBUG in staging
+      - DEMO_MODE                              # MUST be false in production (asserted at startup)
+
+      # ── Database ──
+      # SQLite (dev) or Postgres (pilot+). For Crane Cloud-hosted pilots
+      # prefer a Crane Cloud Postgres add-on or external managed Postgres+PostGIS.
+      - DB_BACKEND                             # sqlite | postgres
+      - POSTGRES_DSN                           # postgresql+asyncpg://user:pass@host/db (when DB_BACKEND=postgres)
+
+      # ── Cache & queue ──
+      - REDIS_URL
+
+      # ── Auth ──
+      - AUTH_MODE                              # dev (HS256) or oidc (RS256 via NITA-U IdP)
+      - JWT_HS256_SECRET                       # ≥ 32 chars; rotated annually or on incident
+      - JWT_ISSUER                             # landguard.ug
+      - JWT_AUDIENCE                           # landguard-backend
+      - OIDC_JWKS_URL                          # https://idp.nita.go.ug/.well-known/jwks.json (when AUTH_MODE=oidc)
+
+      # ── Blockchain ──
+      - BLOCKCHAIN_PROVIDER                    # mock | anvil | sepolia
+      - SEPOLIA_RPC_URL                        # required when BLOCKCHAIN_PROVIDER=sepolia
+      - SEPOLIA_CHAIN_ID                       # 11155111
+      - REGISTRAR_PRIVATE_KEY                  # PILOT ONLY in env; production MUST source from Crane Cloud secret manager (HSM/KMS-backed)
+      - CONTRACT_ADDRESS_FILE                  # path to the JSON address record produced by scripts/deploy_contract.py
+      - ANCHOR_FLUSH_INTERVAL_SECONDS          # default 300 (5 min)
+      - ANCHOR_FLUSH_BATCH_SIZE                # default 100
+
+      # ── Multi-sig custody (3-of-5) ──
+      - MULTISIG_ENABLED                       # true in pilot+; see docs/CUSTODY.md
+      - COSIGNER_PRIVATE_KEYS                  # demo-only co-signer set; in production each signer holds their own key in their own HSM
+
+      # ── NIRA (KYC) ──
+      - NIRA_PROVIDER                          # mock | live
+      - NIRA_BASE_URL
+      - NIRA_API_KEY
+      - NIRA_CACHE_TTL_SECONDS
+
+      # ── PII encryption ──
+      - PII_ENCRYPTION_KEY                     # base64-encoded ≥ 32 random bytes; rotate annually
+
+      # ── Rate limits ──
+      - RATE_LIMIT_ANON
+      - RATE_LIMIT_AUTH
+      - RATE_LIMIT_ADMIN
+      - RATE_LIMIT_PUBLIC_VERIFY               # 20/minute by default — public verifier protection
+
+      # ── Observability ──
+      - OTEL_ENABLED
+      - OTEL_EXPORTER_OTLP_ENDPOINT            # NITA-U or Crane Cloud collector
+      - OTEL_SERVICE_NAME                      # landguard-backend
+      - PROMETHEUS_METRICS_ENABLED
+
+      # ── CORS ──
+      - CORS_ALLOW_ORIGINS                     # comma-separated list; must include the frontend's public URL
+
+  # ── Frontend ───────────────────────────────────────────────────────────
+  frontend:
+    name: landguard-frontend
+    image: ghcr.io/mpairwe7/landguard-uganda-frontend
+    port: 3000
+    replicas: 2
+    command: ""          # bun server.js via Dockerfile CMD
+
+    env:
+      # NEXT_PUBLIC_* keys are baked at build time but the runtime values
+      # also matter for hydration. Set both at build (CI) and deploy (here).
+      - BACKEND_URL                            # https://<backend-url>.cranecloud.ug
+      - NEXT_PUBLIC_APP_NAME
+      - NEXT_PUBLIC_DEMO_MODE                  # false in production
+      - NEXT_PUBLIC_DEFAULT_DISTRICT_ID        # 3 (Mityana) for the pilot
+      - DEMO_TOKEN                             # passphrase gating /demo?demo=1 in non-production
+
+# ── Notes ────────────────────────────────────────────────────────────────
+#
+# 1. Images must be reachable from Crane Cloud's pull side. Default registry
+#    is ghcr.io; make the package public, or grant Crane Cloud's puller read
+#    access via a PAT / GitHub App. To use a different registry, change
+#    `image:` above and the build step in .github/workflows/build-push.yml.
+#
+# 2. Secrets passed via `cranecloud apps deploy -e KEY=value` appear briefly
+#    on the command line — visible to anyone with `ps` on the host. For
+#    highly sensitive secrets (REGISTRAR_PRIVATE_KEY, PII_ENCRYPTION_KEY,
+#    NIRA_API_KEY, JWT_HS256_SECRET), prefer Crane Cloud's web-dashboard
+#    secret manager and set them there once, rather than passing them
+#    through the CLI repeatedly.
+#
+# 3. Per-environment overrides live in `environments/<env>.env`. Templates
+#    (`*.env.example`) are committed; real `.env` files are gitignored.
+#
+# 4. After `cranecloud apps deploy`, the CLI returns an APP_ID (UUID).
+#    Save it to environments/<env>.env as BACKEND_APP_ID / FRONTEND_APP_ID
+#    so subsequent `make update-*` calls target the existing app instead
+#    of creating a duplicate.
+#
+# 5. Production-specific posture: see infra/cranecloud/README.md §8 and
+#    MAINTAINERS.md "Out-of-band review escalation".
