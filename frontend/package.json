@@ -39,7 +39,7 @@
     "qrcode": "^1.5.4",
     "react-hook-form": "^7.53.0",
     "zod": "^3.23.8",
-    "@hookform/resolvers": "^3.9.0",
+    "@hookform/resolvers": "^5.4.0",
     "react-markdown": "^9.0.0",
     "recharts": "^2.13.0",
     "idb-keyval": "^6.2.1",
