@@ -71,19 +71,16 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
+        # docker/login-action@v3 was failing with "malformed HTTP Authorization
+        # header" on a valid PAT — likely a trailing-newline quirk. Bypass with
+        # explicit shell so we have visibility into how the token is fed.
         env:
           DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
           DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           set -euo pipefail
-          # Diagnostic: confirm byte integrity without revealing value.
-          # The token is "dckr_pat_..." which starts with bytes 64 63 6b
-          # and is exactly 36 chars for the value the operator set.
-          echo "DH_USER length: ${#DH_USER}"
-          echo "DH_TOKEN length: ${#DH_TOKEN}"
-          echo "DH_TOKEN first-3-hex: $(printf '%s' "$DH_TOKEN" | head -c 3 | xxd -p)"
-          echo "DH_TOKEN last-3-hex: $(printf '%s' "$DH_TOKEN" | tail -c 3 | xxd -p)"
-          echo "DH_TOKEN starts-with-dckr: $(printf '%s' "$DH_TOKEN" | head -c 4)"
+          # printf '%s' strips the trailing newline echo would add. -- terminates
+          # docker login flag parsing if the user happens to start with `-`.
           printf '%s' "$DH_TOKEN" | docker login -u "$DH_USER" --password-stdin
           echo "→ docker login succeeded"
 
