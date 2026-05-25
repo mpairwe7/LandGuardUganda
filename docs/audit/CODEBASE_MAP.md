@@ -314,8 +314,27 @@ single EOA can call `commitBatch` directly.
 
 ## 8. Known gaps (call these out in any audit report)
 
-- `docs/sbom.json` is referenced in `THREAT_MODEL.md` but does not yet
-  exist. Generate via `uv pip compile` + `bun sbom` before pilot.
+Closed since the prior revision:
+
+- ✅ ~~`scripts/` (project root) is empty~~ — now carries
+  `generate_sbom.sh`, `lighthouse_ci.sh`, `load_test.sh`, and
+  `_sbom_frontend_fallback.py`.
+- ✅ ~~`frontend/e2e/` is empty~~ — `accessibility.spec.ts` authored,
+  uses `@axe-core/playwright`, wired into the CI workflow under the
+  new `accessibility` job.
+- ✅ ~~`docs/sbom.json` referenced but does not exist~~ — CycloneDX 1.5
+  bundle in `evidence/sbom/` (backend + frontend + contracts), each
+  content-addressed with SHA-256.
+- ✅ ~~Penetration-test scope referenced in IMPACT_EVIDENCE but no
+  document~~ — `docs/audit/PENTEST_SCOPE.md` published (OWASP ASVS L2
+  scope, methodology, deliverables, budget).
+- ✅ ~~DPPA §19 breach runbook referenced in SLA_TARGETS but no
+  document~~ — `docs/runbooks/dppa-breach-notification.md` published
+  (72-h decision tree, PDPO + data-subject templates, audit-emission
+  schema, quarterly drill cadence).
+
+Still open:
+
 - `docs/model-cards/` is empty; first model card needed at pilot
   go-live (`isoforest-rules-v1-20260620.md`).
 - `monitoring/grafana/` and `monitoring/otel/` are empty — dashboards
@@ -323,13 +342,11 @@ single EOA can call `commitBatch` directly.
 - `backend/tests/integration/` is empty; only unit tests exist today.
 - `backend/app/services/` is empty (placeholder for future
   domain-service extraction).
-- `frontend/e2e/` is empty; Playwright is wired in `package.json`
-  but no spec files yet.
 - `frontend/src/components/{forms,dispute,kyc,transfer}/` are empty
   placeholders — current screens inline their forms.
-- `scripts/` (project root) is empty; `backend/scripts/` carries
-  everything today.
 - `AUDIT_PACKAGE.md` previously referenced
   `backend/tests/test_idempotency.py`; that file does not exist —
   idempotency is exercised indirectly via `test_anchor_service.py`
   and `test_verify_endpoint.py`. **Track**: add dedicated unit test.
+- Synthetic public-verifier probe (`scripts/synthetic_probe.py`) — see
+  `docs/SLA_TARGETS.md` §10. Pilot-scope deliverable.

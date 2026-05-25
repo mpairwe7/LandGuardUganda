@@ -20,7 +20,12 @@ NITA-U security, MoLHUD ICT, civil-society observers, academic partners).
 | MOU template | `docs/moa-templates/MoLHUD-Mityana-Pilot-MOU.md` | Pilot agreement starting point |
 | Threat model | `docs/audit/THREAT_MODEL.md` | Asset/threat/mitigation matrix |
 | Codebase map | `docs/audit/CODEBASE_MAP.md` | File-by-file inventory of the current repo state |
-| Changelog | `CHANGELOG.md` | Security + dependency timeline (CVE remediations) |
+| Pen-test scope | `docs/audit/PENTEST_SCOPE.md` | OWASP ASVS L2 scope of work for the pilot-launch external review |
+| DPPA breach runbook | `docs/runbooks/dppa-breach-notification.md` | 72-hour notification procedure (decision tree + PDPO/SMS templates) |
+| Accessibility spec | `frontend/e2e/accessibility.spec.ts` | Formal axe-core WCAG 2.2 AA assertion across six citizen-critical routes |
+| SBOM bundle | `evidence/sbom/` | CycloneDX 1.5 (backend + frontend + contracts), content-addressed |
+| Lighthouse baseline | `evidence/lighthouse/20260525T143155Z/` | Per-page perf/a11y/best-practices/SEO baseline with SUMMARY.md |
+| Changelog | `CHANGELOG.md` | Security + dependency + audit-grade-change timeline |
 
 ## Cryptographic invariants under test
 

@@ -15,6 +15,9 @@ node_modules/
 out/
 .bun/
 *.log
+*.tsbuildinfo
+frontend/playwright-report/
+frontend/test-results/
 # NOTE: bun.lock IS committed (frozen-lockfile reproducibility + SBOM
 # generation depend on it). Do not gitignore.
 

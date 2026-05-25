@@ -8,6 +8,34 @@ versioning is calendar-style (`YYYY-MM-DD`) until 1.0.
 
 ---
 
+## 2026-05-25 — Pre-submission deliverables (axe spec, pentest scope, breach runbook)
+
+- `frontend/e2e/accessibility.spec.ts` (new) — Playwright +
+  `@axe-core/playwright` spec asserting zero critical / zero serious
+  WCAG 2.2 AA violations across six citizen-critical routes. Findings
+  attach as JSON to the Playwright HTML report. Bound to a new CI
+  job in `.github/workflows/ci.yml` (`accessibility`) that builds the
+  frontend, runs the production server, installs Playwright Chromium,
+  executes the spec, and uploads the report as a 90-day artefact.
+- `frontend/playwright.config.ts` (new) — standard Playwright config
+  driving the spec; `BASE_URL` envvar drives the target (defaults to
+  localhost prod build on :3031).
+- Added `@axe-core/playwright` + `axe-core` to frontend devDeps.
+- `docs/audit/PENTEST_SCOPE.md` (new) — OWASP ASVS L2 scope of work
+  for the pilot-launch pen-test: in-scope surfaces (web/API, crypto
+  invariants, smart contracts, deployment surface, UX), explicit
+  out-of-scope list, five-phase methodology, deliverables,
+  findings-classification SLAs, budget envelope (UGX 17–23M), retest
+  cadence, vendor shortlist (Makerere CSL preferred).
+- `docs/runbooks/dppa-breach-notification.md` (new) — DPPA-2019 §19
+  72-hour breach-notification procedure: trigger criteria, hour-by-
+  hour timeline, decision tree, role separation, containment
+  procedures (PII / chain / multi-sig key), PDPO + SMS notification
+  templates, audit-chain emission schema, quarterly drill cadence.
+- `docs/audit/CODEBASE_MAP.md` §8 updated: closes four prior-known
+  gaps (frontend/e2e, scripts/ root, SBOM, pentest scope, DPPA
+  runbook) and re-states the remaining honest gaps.
+
 ## 2026-05-25 — Lighthouse baseline + a11y skip-link fix
 
 - Generated the first measured Lighthouse baseline against a local
