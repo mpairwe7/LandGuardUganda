@@ -20,18 +20,45 @@ artefacts the scripts produce are themselves reproducible and dated.
 
 | Page | Performance | Accessibility | Best practices | SEO | PWA |
 |---|---:|---:|---:|---:|---:|
-| `/` (landing) | ≥ 95 | 100 | ≥ 95 | ≥ 95 | installable |
-| `/verify` (public verifier) | ≥ 95 | 100 | ≥ 95 | ≥ 95 | installable |
-| `/anchors` | ≥ 95 | 100 | ≥ 95 | ≥ 95 | – |
+| Page | Target P / A / BP / SEO | Measured baseline (local prod build, dev host) |
+|---|---|---|
+| `/` (landing) | ≥95 / 100 / ≥95 / ≥95 | 80 / 98 / 96 / 100 |
+| `/verify` (public verifier) | ≥95 / 100 / ≥95 / ≥95 | 75 / 98 / 96 / 100 |
+| `/anchors` | ≥95 / 100 / ≥95 / ≥95 | 80 / 98 / 96 / 100 |
+| `/titles/UG-MIT-T00007/2026` | ≥95 / 100 / ≥95 / ≥95 | 81 / 98 / 96 / 100 |
+
+**Baseline measurement (2026-05-25):** committed in
+`evidence/lighthouse/20260525T143155Z/` with full JSON + HTML reports
+plus a `SUMMARY.md`. Honest delta to targets:
+
+- **Performance** below target. The measurement host is a shared,
+  CPU-throttled dev box running `chrome-headless-shell`. The Crane
+  Cloud pilot host (provisioned compute, optimised image, CDN for
+  static assets) is expected to land ≥ 95. Re-run against the deployed
+  pilot instance is scheduled before the 1 June submission.
+- **Accessibility** initially 98; the single failing audit was
+  `skip-link` (the `Skip to content` link targeted `#main` but no such
+  element existed). Fixed in `frontend/src/app/layout.tsx` (`<main
+  id="main">…</main>` wrapping) — next Lighthouse run expected to
+  score 100.
+- **Best practices** and **SEO** meet target.
 
 **Reproduce:**
 
 ```bash
-bash scripts/lighthouse_ci.sh                 # writes evidence/lighthouse/*.json
+# Terminal 1 — production build + serve
+cd frontend && bun install --frozen-lockfile && bun run build
+PORT=3031 bun run start --port 3031
+
+# Terminal 2 — Lighthouse, from repo root
+BASE_URL=http://localhost:3031 bash scripts/lighthouse_ci.sh
+# → writes evidence/lighthouse/<timestamp>/*.{json,html} + SUMMARY.md
 ```
 
-Targets are committed (not aspirational); CI fails if any target is
-missed. Source: `scripts/lighthouse_ci.sh`.
+Source: `scripts/lighthouse_ci.sh`. Targets are committed (not
+aspirational); the CI step in `.github/workflows/ci.yml` will be
+extended to enforce them once the pilot host's measured baseline is in
+the same artefact.
 
 ### 1.2 axe-core (WCAG 2.2 AA)
 

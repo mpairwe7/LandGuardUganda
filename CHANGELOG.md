@@ -8,6 +8,42 @@ versioning is calendar-style (`YYYY-MM-DD`) until 1.0.
 
 ---
 
+## 2026-05-25 — Lighthouse baseline + a11y skip-link fix
+
+- Generated the first measured Lighthouse baseline against a local
+  production build (`evidence/lighthouse/20260525T143155Z/`). Per-page
+  scores: P 75–81 / A11y 98 / BP 96 / SEO 100. Measurement environment
+  documented in `SUMMARY.md` alongside reproduction commands; honest
+  delta to targets called out in `docs/IMPACT_EVIDENCE.md` §1.1.
+- Fixed the single failing accessibility audit (`skip-link`) by wrapping
+  the page tree in `<main id="main">` in `frontend/src/app/layout.tsx`.
+  The skip-link in the layout targets `#main`; the next Lighthouse run
+  expected to score Accessibility = 100.
+- Hardened `scripts/lighthouse_ci.sh` to work on sandboxed runners:
+  prefer `npx` over `bunx` (bunx ENOTSUP on certain filesystems);
+  auto-discover Chrome from `~/.cache/puppeteer/chrome-headless-shell`;
+  pre-launch Chrome on a fixed devtools port with a writable
+  `user-data-dir`; `--disable-storage-reset` to work around
+  `Storage.getUsageAndQuota` not supported in chrome-headless-shell.
+
+## 2026-05-25 — CI/CD switches to Docker Hub (reuses FYP/HSU secrets)
+
+- `.github/workflows/build-push.yml` rewritten to push to
+  `docker.io/<DOCKERHUB_USERNAME>/landguard-uganda-{backend,frontend}`
+  instead of GHCR. Authenticates with `DOCKERHUB_USERNAME` +
+  `DOCKERHUB_TOKEN` — the same secret names already configured for
+  `Mpairwe7/FinalYearProject` and `Mpairwe7/HealthSyncUganda`, so no
+  new secrets need to be created.
+- `.github/workflows/deploy-cranecloud.yml` updated to pull from
+  `docker.io/<owner>/...` rather than `ghcr.io/...`. Continues to use
+  the same Crane Cloud secret names (`CRANECLOUD_TOKEN`,
+  `CRANECLOUD_USER_ID`, `CRANECLOUD_PROJECT_ID`,
+  `CRANECLOUD_BACKEND_APP_ID`, `CRANECLOUD_FRONTEND_APP_ID`) that
+  HealthSyncUganda's pipeline uses.
+- Optional repo-level override: set `vars.DOCKER_IMAGE_OWNER` to point
+  at an organisation namespace (e.g. `landguardug`) instead of the
+  personal Docker Hub user.
+
 ## 2026-05-25 — Crane Cloud CI/CD pipeline + SBOM evidence
 
 - Added `.github/workflows/{ci,build-push,deploy-cranecloud}.yml` — three-
