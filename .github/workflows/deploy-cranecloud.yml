@@ -121,11 +121,23 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve Docker Hub image namespace
+        id: owner
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -euo pipefail
+          OWNER="${{ vars.DOCKER_IMAGE_OWNER }}"
+          if [ -z "$OWNER" ]; then
+            OWNER="${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME secret missing and DOCKER_IMAGE_OWNER var not set — same secret used by FinalYearProject and HealthSyncUganda}"
+          fi
+          echo "owner=$OWNER" >> "$GITHUB_OUTPUT"
+
       - name: Update backend
         if: inputs.target == 'backend' || inputs.target == 'both'
         env:
           CRANECLOUD_BACKEND_APP_ID: ${{ secrets.CRANECLOUD_BACKEND_APP_ID }}
-          IMAGE: ghcr.io/${{ github.repository_owner }}/landguard-uganda-backend:${{ inputs.image_tag }}
+          IMAGE: docker.io/${{ steps.owner.outputs.owner }}/landguard-uganda-backend:${{ inputs.image_tag }}
         run: |
           set -euo pipefail
           echo "→ Updating backend ($CRANECLOUD_BACKEND_APP_ID) to image: $IMAGE"
@@ -136,7 +148,7 @@ jobs:
         if: inputs.target == 'frontend' || inputs.target == 'both'
         env:
           CRANECLOUD_FRONTEND_APP_ID: ${{ secrets.CRANECLOUD_FRONTEND_APP_ID }}
-          IMAGE: ghcr.io/${{ github.repository_owner }}/landguard-uganda-frontend:${{ inputs.image_tag }}
+          IMAGE: docker.io/${{ steps.owner.outputs.owner }}/landguard-uganda-frontend:${{ inputs.image_tag }}
         run: |
           set -euo pipefail
           echo "→ Updating frontend ($CRANECLOUD_FRONTEND_APP_ID) to image: $IMAGE"
