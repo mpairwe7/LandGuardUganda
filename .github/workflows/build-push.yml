@@ -2,14 +2,19 @@ name: Build & push images (Docker Hub)
 
 # Triggers
 #   • push to main         → tagged with branch + short-sha
-#   • push of v* tag       → tagged with semver + "latest" on non-prerelease releases
-#   • workflow_dispatch    → manual rebuild from any ref (audit-tracked via the `reason` input)
+#   • push of v* tag       → tagged with semver + sha-suffix; auto-dispatches deploy
+#   • workflow_dispatch    → manual rebuild from any ref (audit-tracked via `reason`)
 #
-# Auth: reuses the user-/org-level DockerHub secrets already configured for
-# Mpairwe7/FinalYearProject and Mpairwe7/HealthSyncUganda — DOCKERHUB_USERNAME
-# and DOCKERHUB_TOKEN. The image namespace is `vars.DOCKER_IMAGE_OWNER`; if
-# unset we fall back to the DOCKERHUB_USERNAME secret so a freshly-cloned
-# repo still works with zero extra configuration.
+# Auth: DOCKERHUB_USERNAME + DOCKERHUB_TOKEN (repo-level secrets — same secret
+# names used in mpairwe7/OptiscanAI and FinalYearProject/App). Images push to
+# docker.io/${DOCKERHUB_USERNAME}/landguard-uganda-{backend,frontend}.
+#
+# SHA-suffixed tags (e.g. v0.1.0-showcase-abc1234) are emitted alongside the
+# nominal version tag so the deploy-cranecloud.yml workflow can PATCH the
+# Crane Cloud app's image field with a fresh string on every push, forcing a
+# pod rollover. Crane Cloud diffs the image field as a string, so PATCHing
+# the floating :latest or :v0.1.0-showcase tag is a no-op — only the
+# sha-suffixed tag guarantees rollover.
 
 on:
   push:
@@ -28,15 +33,9 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write          # for cosign keyless OIDC, if/when enabled
 
 env:
   REGISTRY: docker.io
-  # Optional namespace override. If empty (the common case), the resolve
-  # step below uses the DOCKERHUB_USERNAME secret. Set this repository
-  # variable (Settings → Variables) when pushing under an org namespace
-  # like `landguardug` rather than a personal one.
-  IMAGE_OWNER: ${{ vars.DOCKER_IMAGE_OWNER }}
 
 jobs:
   build:
@@ -48,38 +47,25 @@ jobs:
           - app: backend
             context: backend
             dockerfile: backend/Dockerfile
-            image_suffix: landguard-uganda-backend
+            image_name: landguard-uganda-backend
           - app: frontend
             context: frontend
             dockerfile: frontend/Dockerfile
-            image_suffix: landguard-uganda-frontend
+            image_name: landguard-uganda-frontend
 
     name: ${{ matrix.app }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate DockerHub secrets are present
+      - name: Validate Docker Hub secrets
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           set -euo pipefail
-          : "${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME secret is missing — configure under Settings → Secrets and variables → Actions (or at the user/org level so it's shared with FinalYearProject + HealthSyncUganda)}"
-          : "${DOCKERHUB_TOKEN:?DOCKERHUB_TOKEN secret is missing — create at hub.docker.com → Account Settings → Personal access tokens}"
-
-      - name: Resolve image owner
-        id: owner
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: |
-          set -euo pipefail
-          OWNER="${{ env.IMAGE_OWNER }}"
-          if [ -z "$OWNER" ]; then
-            OWNER="$DOCKERHUB_USERNAME"
-          fi
-          echo "owner=$OWNER" >> "$GITHUB_OUTPUT"
-          echo "→ Pushing as: docker.io/$OWNER/${{ matrix.image_suffix }}"
+          : "${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME secret missing — add at Settings → Secrets and variables → Actions}"
+          : "${DOCKERHUB_TOKEN:?DOCKERHUB_TOKEN secret missing — generate at hub.docker.com → Account Settings → Personal access tokens}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -90,20 +76,20 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Derives tag list deterministically:
-      #   - branch name (e.g. main)
-      #   - short SHA (always)
-      #   - semver version (when ref is v*)
-      #   - latest (only on a non-prerelease v* tag)
+      # Derives tag list deterministically. SHA-suffixed variants are critical
+      # for the deploy-cranecloud.yml rollover trick (string-diff against
+      # Crane Cloud's stored image field).
       - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ steps.owner.outputs.owner }}/${{ matrix.image_suffix }}
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image_name }}
           tags: |
             type=ref,event=branch
+            type=ref,event=branch,suffix=-{{sha}}
             type=sha,prefix=sha-,format=short
             type=semver,pattern={{version}}
+            type=semver,pattern={{version}},suffix=-{{sha}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-') }}
           labels: |
@@ -125,7 +111,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          provenance: false                                  # keep image SBOM simple at prototype stage
+          provenance: false
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
 
@@ -134,7 +120,6 @@ jobs:
           {
             echo "### ${{ matrix.app }} image pushed"
             echo "- registry: \`${{ env.REGISTRY }}\`"
-            echo "- namespace: \`${{ steps.owner.outputs.owner }}\`"
             echo "- digest: \`${{ steps.build.outputs.digest }}\`"
             echo "- tags:"
             echo '```'
@@ -142,40 +127,28 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Auto-dispatch Crane Cloud rollout for non-production targets after a
-  # successful build of main / v* tag. Production deploys remain
-  # operator-triggered via workflow_dispatch on deploy-cranecloud.yml.
+  # Auto-dispatch the Crane Cloud rollout for v* tag pushes.
+  # Production deploys triggered from main pushes are intentionally
+  # left to operator dispatch; see the security note in
+  # docs/adr/0002-zero-trust-posture.md.
   dispatch-deploy:
     needs: build
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - name: Compute deploy environment
-        id: env
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "env=pilot"    >> $GITHUB_OUTPUT
-            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-          else
-            echo "env=staging"  >> $GITHUB_OUTPUT
-            echo "tag=sha-$(git rev-parse --short HEAD || echo ${GITHUB_SHA::7})" >> $GITHUB_OUTPUT
-          fi
-
       - name: Trigger Crane Cloud rollout
         uses: actions/github-script@v7
         with:
           script: |
-            const env = '${{ steps.env.outputs.env }}';
-            const tag = '${{ steps.env.outputs.tag }}';
+            const tag = context.ref.replace('refs/tags/', '');
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'deploy-cranecloud.yml',
               ref: context.ref,
               inputs: {
-                env: env,
                 target: 'both',
                 image_tag: tag,
               }
             });
-            core.notice(`Dispatched deploy-cranecloud (env=${env}, tag=${tag})`);
+            core.notice(`Dispatched deploy-cranecloud (tag=${tag})`);

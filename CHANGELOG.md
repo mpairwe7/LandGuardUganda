@@ -8,6 +8,61 @@ versioning is calendar-style (`YYYY-MM-DD`) until 1.0.
 
 ---
 
+## 2026-05-26 — CI/CD rewired to direct Crane Cloud HTTP API (OptiscanAI pattern)
+
+The previous `deploy-cranecloud.yml` depended on the `cranecloud` Python
+CLI inside the runner. That CLI requires an OS keyring backend
+(D-Bus / SecretService) which GitHub-hosted runners don't provide, and
+fighting the keyring with `PYTHON_KEYRING_BACKEND=null` plus token-file
+seeding proved brittle across CLI versions.
+
+The replacement, ported from `mpairwe7/OptiscanAI`'s production
+`docker-publish.yml`, uses **direct curl calls to api.cranecloud.io**:
+
+  1. `POST /users/login` with email+password in JSON body → JWT in
+     `data.access_token`.
+  2. `PATCH /apps/{app_id}` with `{"image": "<docker.io path>:<tag>-<sha7>"}`
+     → triggers Crane Cloud pod rollover.
+  3. `GET <public-url>/healthz` (or `/api/health`) polled for up to 5 min.
+
+Why SHA-suffixed tags? Crane Cloud diffs the `image` field as a
+string. PATCHing the same `:latest` or `:v0.1.0-showcase` tag is a
+no-op. We push both the floating tag AND a `<tag>-<sha7>` variant on
+every build; the deploy step PATCHes the SHA-suffixed form so every
+push produces a fresh image string Crane Cloud sees as new.
+
+Secret-name convention mirrors OptiscanAI:
+
+  Repository-level (`gh secret set NAME --repo …`):
+    DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
+
+  `production` environment (`gh secret set NAME --env production`):
+    CRANE_CLOUD_EMAIL, CRANE_CLOUD_PASSWORD
+    CRANE_CLOUD_BACKEND_APP_ID, CRANE_CLOUD_FRONTEND_APP_ID
+    CRANE_CLOUD_BACKEND_URL, CRANE_CLOUD_FRONTEND_URL  (optional, for health-check)
+
+`scripts/setup_github_secrets.sh` walks the operator through setting
+all eight via `gh secret set NAME --body -` with `read -s` for the
+value, so no secret value ever enters argv, history, or stdout. Use
+`--rotate` to force-overwrite already-set values.
+
+`.github/workflows/build-push.yml` simplified: no more
+`vars.DOCKER_IMAGE_OWNER` override path; images go to
+`docker.io/${DOCKERHUB_USERNAME}/landguard-uganda-{backend,frontend}`
+directly. Auto-dispatches `deploy-cranecloud.yml` only on `v*` tag
+pushes (`main`-branch pushes only build, never deploy — matches the
+production-deploy posture in MAINTAINERS.md).
+
+`production` GitHub environment created via
+`gh api -X PUT repos/mpairwe7/LandGuardUganda/environments/production`.
+Reviewer protection rules can be added in the GitHub UI later
+(Settings → Environments → production → Required reviewers).
+
+The previous CLI-based workflow + `infra/cranecloud/` Makefile path
+remain available for operator-led local deploys (first-time app
+creation, ad-hoc rollouts, debugging) but are no longer the canonical
+CI path.
+
 ## 2026-05-25 — Pre-submission deliverables (axe spec, pentest scope, breach runbook)
 
 - `frontend/e2e/accessibility.spec.ts` (new) — Playwright +

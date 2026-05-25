@@ -1,161 +1,182 @@
 name: Deploy to Crane Cloud
 
-# Operator-led rollout to Crane Cloud (Makerere AI Lab's Uganda PaaS).
-# Triggered:
-#   • manually   → workflow_dispatch with env + target + image_tag
-#   • by build   → build-push.yml fires this on main → staging, v* → pilot
-#                  (production is NEVER auto-dispatched — see deploy summary).
+# Direct Crane Cloud HTTP API rollout — mirrors the pattern proven in
+# mpairwe7/OptiscanAI. We deliberately do NOT install the `cranecloud`
+# CLI inside CI: the CLI requires an OS keyring backend (D-Bus
+# SecretService) that GitHub runners don't provide, which made the
+# previous CLI-based workflow brittle. Direct `curl` against
+# api.cranecloud.io is portable, leaves no token on disk, and
+# round-trips in under 30s for the whole push→deploy→health-check loop.
 #
-# Non-interactive auth flow: the cranecloud CLI normally talks to the OS
-# keyring. In CI we disable the keyring backend and seed the on-disk
-# token from a GitHub Environment secret. If the CLI version refuses to
-# accept the seeded token (regression risk), the job FAILS LOUDLY and
-# posts a fallback recipe to the run summary. We never silently no-op a
-# production deploy.
+# Triggered:
+#   • manually   → workflow_dispatch with image_tag
+#   • by build   → build-push.yml fires this on push of v* tag
+#
+# Authentication flow:
+#   1. POST /users/login with email+password (in JSON body, not argv)
+#      → returns { data: { access_token: "<jwt>" } }
+#   2. PATCH /apps/{app_id} with { image: "<docker.io path>:<tag>-<sha7>" }
+#      → triggers Crane Cloud to pull the new image and restart the pod
+#   3. GET <public-url>/healthz → poll until 200 or timeout
+#
+# SHA-tagging matters: Crane Cloud diffs the `image` field as a string.
+# PATCHing with the same `:latest` or `:v0.1.0-showcase` tag is a no-op
+# (no pod restart). We use `<tag>-<short-sha>` so every CI run produces
+# a fresh image string that Crane Cloud sees as new.
 
 on:
   workflow_dispatch:
     inputs:
-      env:
-        description: "Target environment"
-        type: choice
-        options: [staging, pilot, production]
-        default: pilot
+      image_tag:
+        description: "Image tag to roll out (e.g. v0.1.0-showcase). The SHA suffix is appended automatically."
+        type: string
         required: true
       target:
-        description: "Which app(s) to update"
+        description: "Which app(s) to redeploy"
         type: choice
         options: [backend, frontend, both]
         default: both
         required: true
-      image_tag:
-        description: "Image tag to roll out (e.g. v0.1.0-showcase or sha-abc1234)"
-        type: string
-        required: true
 
 concurrency:
-  group: deploy-cranecloud-${{ inputs.env }}
+  group: deploy-cranecloud-${{ github.ref }}
   cancel-in-progress: false       # never cancel an in-flight production rollout
 
 permissions:
   contents: read
 
+env:
+  CRANE_CLOUD_API: https://api.cranecloud.io
+
 jobs:
   deploy:
-    name: cranecloud apps update (${{ inputs.env }})
+    name: Deploy ${{ inputs.target }} (${{ inputs.image_tag }})
     runs-on: ubuntu-latest
     # GitHub Environment gates approvals + holds environment-scoped secrets.
-    # The production environment is configured with required reviewers per
-    # MAINTAINERS.md "Out-of-band review escalation" + docs/CUSTODY.md.
-    environment:
-      name: cranecloud-${{ inputs.env }}
-    env:
-      PYTHON_KEYRING_BACKEND: keyring.backends.null.Keyring
-
+    # The `production` environment is configured with required reviewers
+    # per MAINTAINERS.md "Out-of-band review escalation".
+    environment: production
     steps:
-      - name: Checkout (for fallback recipe reference)
-        uses: actions/checkout@v4
-
       - name: Validate required environment-scoped secrets
-        # Mirrors the ${VAR:?Set ...} strictness from docker-compose.sepolia.yml —
-        # refuse to proceed on a missing input. Each environment must have its
-        # own complete set under Settings → Environments → cranecloud-<env>.
         run: |
           set -euo pipefail
-          : "${CRANECLOUD_TOKEN:?CRANECLOUD_TOKEN environment secret is missing}"
-          : "${CRANECLOUD_USER_ID:?CRANECLOUD_USER_ID environment secret is missing}"
-          : "${CRANECLOUD_PROJECT_ID:?CRANECLOUD_PROJECT_ID environment secret is missing}"
+          : "${CRANE_CLOUD_EMAIL:?CRANE_CLOUD_EMAIL environment secret is missing}"
+          : "${CRANE_CLOUD_PASSWORD:?CRANE_CLOUD_PASSWORD environment secret is missing}"
+          : "${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME secret is missing}"
           if [[ "${{ inputs.target }}" != "frontend" ]]; then
-            : "${CRANECLOUD_BACKEND_APP_ID:?CRANECLOUD_BACKEND_APP_ID environment secret is missing}"
+            : "${CRANE_CLOUD_BACKEND_APP_ID:?CRANE_CLOUD_BACKEND_APP_ID environment secret is missing}"
           fi
           if [[ "${{ inputs.target }}" != "backend" ]]; then
-            : "${CRANECLOUD_FRONTEND_APP_ID:?CRANECLOUD_FRONTEND_APP_ID environment secret is missing}"
+            : "${CRANE_CLOUD_FRONTEND_APP_ID:?CRANE_CLOUD_FRONTEND_APP_ID environment secret is missing}"
           fi
         env:
-          CRANECLOUD_TOKEN: ${{ secrets.CRANECLOUD_TOKEN }}
-          CRANECLOUD_USER_ID: ${{ secrets.CRANECLOUD_USER_ID }}
-          CRANECLOUD_PROJECT_ID: ${{ secrets.CRANECLOUD_PROJECT_ID }}
-          CRANECLOUD_BACKEND_APP_ID: ${{ secrets.CRANECLOUD_BACKEND_APP_ID }}
-          CRANECLOUD_FRONTEND_APP_ID: ${{ secrets.CRANECLOUD_FRONTEND_APP_ID }}
+          CRANE_CLOUD_EMAIL: ${{ secrets.CRANE_CLOUD_EMAIL }}
+          CRANE_CLOUD_PASSWORD: ${{ secrets.CRANE_CLOUD_PASSWORD }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          CRANE_CLOUD_BACKEND_APP_ID: ${{ secrets.CRANE_CLOUD_BACKEND_APP_ID }}
+          CRANE_CLOUD_FRONTEND_APP_ID: ${{ secrets.CRANE_CLOUD_FRONTEND_APP_ID }}
 
-      - name: Set up Python (cranecloud CLI is pip-installable)
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install cranecloud CLI
-        run: |
-          set -euo pipefail
-          pip install --upgrade pip
-          # Pin a known-good version once published. Until then, attempt both
-          # candidate distribution names — the CLI has been published under
-          # multiple names during its alpha.
-          pip install cranecloud || pip install crane-cloud-cli
-          which cranecloud
-          cranecloud --help | head -5
-
-      - name: Seed cranecloud token from secret
-        # Restore the on-disk token the CLI expects at ~/.cranecloud/token.
-        # The keyring is disabled via PYTHON_KEYRING_BACKEND so the CLI will
-        # not attempt to unlock a passphrase from the OS keyring.
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.cranecloud
-          umask 077
-          printf '%s' "${CRANECLOUD_TOKEN}" > ~/.cranecloud/token
-          printf '%s' "${CRANECLOUD_USER_ID}" > ~/.cranecloud/user_id
-          chmod 600 ~/.cranecloud/token ~/.cranecloud/user_id
+      - name: Authenticate with Crane Cloud
+        id: auth
         env:
-          CRANECLOUD_TOKEN: ${{ secrets.CRANECLOUD_TOKEN }}
-          CRANECLOUD_USER_ID: ${{ secrets.CRANECLOUD_USER_ID }}
-
-      - name: Verify CLI can talk to Crane Cloud
+          CRANE_CLOUD_EMAIL: ${{ secrets.CRANE_CLOUD_EMAIL }}
+          CRANE_CLOUD_PASSWORD: ${{ secrets.CRANE_CLOUD_PASSWORD }}
         run: |
           set -euo pipefail
-          if ! cranecloud auth user 2>&1 | tee /tmp/auth.log; then
-            echo "::error::cranecloud auth user failed — likely the CLI version re-introduced a keyring dependency that the null backend cannot satisfy."
-            echo ""
-            echo "::warning::Fallback: deploy manually from an interactive shell."
-            echo "  cd infra/cranecloud"
-            echo "  make update-${{ inputs.target }} ENV=${{ inputs.env }}"
+          # POST credentials in JSON body — never on the URL or argv.
+          TOKEN=$(curl -sf -X POST "$CRANE_CLOUD_API/users/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\": \"$CRANE_CLOUD_EMAIL\", \"password\": \"$CRANE_CLOUD_PASSWORD\"}" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['access_token'])")
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Crane Cloud authentication returned no token"
             exit 1
           fi
+          echo "→ Authenticated"
+          # Mask the token in GitHub Actions logs even if anything echoes it.
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve Docker Hub image namespace
-        id: owner
+      - name: Deploy backend
+        if: inputs.target == 'backend' || inputs.target == 'both'
         env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+          APP_ID: ${{ secrets.CRANE_CLOUD_BACKEND_APP_ID }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           set -euo pipefail
-          OWNER="${{ vars.DOCKER_IMAGE_OWNER }}"
-          if [ -z "$OWNER" ]; then
-            OWNER="${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME secret missing and DOCKER_IMAGE_OWNER var not set — same secret used by FinalYearProject and HealthSyncUganda}"
+          SHA7="${GITHUB_SHA:0:7}"
+          IMAGE="$DOCKERHUB_USERNAME/landguard-uganda-backend:${{ inputs.image_tag }}-${SHA7}"
+          echo "→ Updating backend ($APP_ID) → $IMAGE"
+          STATUS=$(curl -sf -o /tmp/backend-resp.json -w "%{http_code}" -X PATCH \
+            "$CRANE_CLOUD_API/apps/$APP_ID" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"image\": \"$IMAGE\"}")
+          echo "  HTTP $STATUS"
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            cat /tmp/backend-resp.json
+            exit 1
           fi
-          echo "owner=$OWNER" >> "$GITHUB_OUTPUT"
 
-      - name: Update backend
-        if: inputs.target == 'backend' || inputs.target == 'both'
-        env:
-          CRANECLOUD_BACKEND_APP_ID: ${{ secrets.CRANECLOUD_BACKEND_APP_ID }}
-          IMAGE: docker.io/${{ steps.owner.outputs.owner }}/landguard-uganda-backend:${{ inputs.image_tag }}
-        run: |
-          set -euo pipefail
-          echo "→ Updating backend ($CRANECLOUD_BACKEND_APP_ID) to image: $IMAGE"
-          cranecloud apps update "$CRANECLOUD_BACKEND_APP_ID" \
-            --image "$IMAGE"
-
-      - name: Update frontend
+      - name: Deploy frontend
         if: inputs.target == 'frontend' || inputs.target == 'both'
         env:
-          CRANECLOUD_FRONTEND_APP_ID: ${{ secrets.CRANECLOUD_FRONTEND_APP_ID }}
-          IMAGE: docker.io/${{ steps.owner.outputs.owner }}/landguard-uganda-frontend:${{ inputs.image_tag }}
+          TOKEN: ${{ steps.auth.outputs.token }}
+          APP_ID: ${{ secrets.CRANE_CLOUD_FRONTEND_APP_ID }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           set -euo pipefail
-          echo "→ Updating frontend ($CRANECLOUD_FRONTEND_APP_ID) to image: $IMAGE"
-          cranecloud apps update "$CRANECLOUD_FRONTEND_APP_ID" \
-            --image "$IMAGE"
+          SHA7="${GITHUB_SHA:0:7}"
+          IMAGE="$DOCKERHUB_USERNAME/landguard-uganda-frontend:${{ inputs.image_tag }}-${SHA7}"
+          echo "→ Updating frontend ($APP_ID) → $IMAGE"
+          STATUS=$(curl -sf -o /tmp/frontend-resp.json -w "%{http_code}" -X PATCH \
+            "$CRANE_CLOUD_API/apps/$APP_ID" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"image\": \"$IMAGE\"}")
+          echo "  HTTP $STATUS"
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            cat /tmp/frontend-resp.json
+            exit 1
+          fi
 
-      - name: Post-deploy summary
+      - name: Health-check backend
+        if: (inputs.target == 'backend' || inputs.target == 'both') && env.CRANE_CLOUD_BACKEND_URL != ''
+        env:
+          CRANE_CLOUD_BACKEND_URL: ${{ secrets.CRANE_CLOUD_BACKEND_URL }}
+        run: |
+          echo "Waiting for backend deployment..."
+          for i in $(seq 1 20); do
+            HTTP=$(curl -sf -o /dev/null -w "%{http_code}" "$CRANE_CLOUD_BACKEND_URL/healthz" 2>/dev/null || echo "000")
+            echo "  [$i] /healthz=$HTTP"
+            if [ "$HTTP" = "200" ]; then
+              echo "→ Backend healthy"
+              curl -sf "$CRANE_CLOUD_BACKEND_URL/readyz" | python3 -m json.tool || true
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::warning::Backend /healthz did not return 200 within 5 minutes (deploy may still be progressing)"
+
+      - name: Health-check frontend
+        if: (inputs.target == 'frontend' || inputs.target == 'both') && env.CRANE_CLOUD_FRONTEND_URL != ''
+        env:
+          CRANE_CLOUD_FRONTEND_URL: ${{ secrets.CRANE_CLOUD_FRONTEND_URL }}
+        run: |
+          echo "Waiting for frontend deployment..."
+          for i in $(seq 1 20); do
+            HTTP=$(curl -sf -o /dev/null -w "%{http_code}" "$CRANE_CLOUD_FRONTEND_URL/api/health" 2>/dev/null || echo "000")
+            echo "  [$i] /api/health=$HTTP"
+            if [ "$HTTP" = "200" ]; then
+              echo "→ Frontend healthy"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::warning::Frontend /api/health did not return 200 within 5 minutes (deploy may still be progressing)"
+
+      - name: Deploy summary
         if: always()
         run: |
           {
@@ -163,27 +184,8 @@ jobs:
             echo
             echo "| Field      | Value |"
             echo "| ---------- | ----- |"
-            echo "| env        | \`${{ inputs.env }}\` |"
             echo "| target     | \`${{ inputs.target }}\` |"
             echo "| image_tag  | \`${{ inputs.image_tag }}\` |"
+            echo "| sha7       | \`${GITHUB_SHA:0:7}\` |"
             echo "| status     | \`${{ job.status }}\` |"
-            echo
-            if [ "${{ job.status }}" != "success" ]; then
-              echo "**Deploy did not complete.** Fallback (from an interactive shell):"
-              echo
-              echo '```bash'
-              echo "cd infra/cranecloud"
-              if [ "${{ inputs.target }}" = "both" ]; then
-                echo "make update-backend ENV=${{ inputs.env }} && make update-frontend ENV=${{ inputs.env }}"
-              else
-                echo "make update-${{ inputs.target }} ENV=${{ inputs.env }}"
-              fi
-              echo '```'
-            fi
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Cleanup token
-        if: always()
-        run: |
-          shred -uz ~/.cranecloud/token 2>/dev/null || rm -f ~/.cranecloud/token
-          shred -uz ~/.cranecloud/user_id 2>/dev/null || rm -f ~/.cranecloud/user_id

@@ -149,19 +149,43 @@ Platform-as-a-Service) for sovereignty reasons documented in
 
 | Concern | File |
 |---|---|
+CI/CD is split between **GitHub Actions** (canonical, fully automated)
+and an **operator-led local path** via `infra/cranecloud/` (first-time
+app creation, ad-hoc deploys, debugging).
+
+| Concern | File |
+|---|---|
+| Operator-led deploy guide | [`infra/cranecloud/README.md`](./infra/cranecloud/README.md) |
+| Operator-led deploy wrappers | [`infra/cranecloud/Makefile`](./infra/cranecloud/Makefile) |
 | What gets deployed (image, port, env names) | [`infra/cranecloud/manifest.yaml`](./infra/cranecloud/manifest.yaml) |
-| Make-driven deploy wrappers | [`infra/cranecloud/Makefile`](./infra/cranecloud/Makefile) |
-| Per-environment templates (staging / pilot / production) | [`infra/cranecloud/environments/`](./infra/cranecloud/environments/) |
-| Full operator guide | [`infra/cranecloud/README.md`](./infra/cranecloud/README.md) |
+| Per-environment templates | [`infra/cranecloud/environments/`](./infra/cranecloud/environments/) |
+| **One-shot GitHub-secrets bootstrap** | [`scripts/setup_github_secrets.sh`](./scripts/setup_github_secrets.sh) |
 
 GitHub Actions:
 
 | Workflow | Trigger | Purpose |
 |---|---|---|
-| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | every PR + push to main | backend tests, forge tests, frontend build, OSV-Scanner, docker-build verify, SBOM artefact upload |
-| [`.github/workflows/build-push.yml`](./.github/workflows/build-push.yml) | push to main, `v*` tags, manual | builds + pushes both images to GHCR; auto-dispatches deploy for staging / pilot |
-| [`.github/workflows/deploy-cranecloud.yml`](./.github/workflows/deploy-cranecloud.yml) | dispatched by build-push.yml; or manual for production | operator-led Crane Cloud rollout with hard-fail fallback recipe |
+| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | every PR + push to main | backend tests, forge tests, frontend build, OSV-Scanner, docker-build verify, SBOM artefact upload, axe-core accessibility |
+| [`.github/workflows/build-push.yml`](./.github/workflows/build-push.yml) | push to main; `v*` tags; manual | builds + pushes images to `docker.io/${DOCKERHUB_USERNAME}/landguard-uganda-{backend,frontend}`; auto-dispatches deploy on `v*` tag |
+| [`.github/workflows/deploy-cranecloud.yml`](./.github/workflows/deploy-cranecloud.yml) | dispatched by build-push.yml; or manual | direct curl to `api.cranecloud.io` (POST /users/login → PATCH /apps/{id}) — no CLI dep |
 | [`.github/dependabot.yml`](./.github/dependabot.yml) | weekly Monday 06:00 Africa/Kampala | uv + npm + actions + docker dependency updates |
+
+**Required GitHub secrets** (set once via `bash scripts/setup_github_secrets.sh`):
+
+| Scope | Name | Source |
+|---|---|---|
+| Repository | `DOCKERHUB_USERNAME` | your Docker Hub username |
+| Repository | `DOCKERHUB_TOKEN` | hub.docker.com → Account Settings → PATs (Read/Write/Delete) |
+| `production` env | `CRANE_CLOUD_EMAIL` | Crane Cloud account email |
+| `production` env | `CRANE_CLOUD_PASSWORD` | Crane Cloud account password |
+| `production` env | `CRANE_CLOUD_BACKEND_APP_ID` | `cranecloud apps list` UUID for the backend |
+| `production` env | `CRANE_CLOUD_FRONTEND_APP_ID` | `cranecloud apps list` UUID for the frontend |
+| `production` env | `CRANE_CLOUD_BACKEND_URL` | optional — for `/healthz` polling |
+| `production` env | `CRANE_CLOUD_FRONTEND_URL` | optional — for `/api/health` polling |
+
+Same naming as `mpairwe7/OptiscanAI` so the same setup applies across
+repos. The setup script reads each value via `read -s` (no echo) and
+pipes to `gh secret set NAME --body -` (no argv exposure).
 
 ## Government readiness
 
