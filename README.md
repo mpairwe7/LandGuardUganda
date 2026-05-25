@@ -74,21 +74,41 @@ without smartphone-only access, and without single-key custody.
 
 ## Documentation index
 
-For an auditor or evaluator, read in this order:
+**Panel evaluators start here:**
 
-1. **[`docs/REQUIREMENTS.md`](./docs/REQUIREMENTS.md)** — system requirements, capacity targets, compliance posture, and the seven evaluation criteria mapped to evidence files.
-2. **[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)** — full architecture, data flow, tenancy model, fraud detection, resilience, threat model, observability, testing strategy, migration paths.
-3. **[`docs/DESIGN_SYSTEM.md`](./docs/DESIGN_SYSTEM.md)** — the UI/UX contract (Ugandan-government visual identity, IBM Plex typography, four-button discipline, AI-ethics colour rules).
-4. **[`docs/audit/AUDIT_PACKAGE.md`](./docs/audit/AUDIT_PACKAGE.md)** — one-page index pointing at every claim's reproducible evidence.
-5. **[`docs/audit/THREAT_MODEL.md`](./docs/audit/THREAT_MODEL.md)** — full threat model with mitigations.
-6. **[`docs/AI_ETHICS_CHARTER.md`](./docs/AI_ETHICS_CHARTER.md)** — the policy behind human-in-the-loop fraud review.
-7. **[`docs/CUSTODY.md`](./docs/CUSTODY.md)** — 3-of-5 multi-sig signer plan.
-8. **[`docs/GOVERNANCE.md`](./docs/GOVERNANCE.md)** — DPPA-2019 compliance posture.
-9. **[`docs/USSD_DEPLOYMENT.md`](./docs/USSD_DEPLOYMENT.md)** — USSD pathway deployment guide.
-10. **[`docs/moa-templates/MoLHUD-Mityana-Pilot-MOU.md`](./docs/moa-templates/MoLHUD-Mityana-Pilot-MOU.md)** — drop-in MOU template for the Mityana pilot.
-11. **[`docs/adr/`](./docs/adr/)** — architecture decision records (e.g. ADR-0001 dual-Merkle regime).
-12. **[`DEMO_RUNBOOK.md`](./DEMO_RUNBOOK.md)** — 25 June 2026 showcase script + recovery procedures.
-13. **[`QUICKSTART.md`](./QUICKSTART.md)** — five-minute local bring-up.
+0. **[`docs/SHOWCASE_EVALUATION_MAPPING.md`](./docs/SHOWCASE_EVALUATION_MAPPING.md)** — one-page map of the seven evaluation criteria to specific files, features, and reproducible evidence. Read this first if you have 5 minutes.
+
+For an auditor, evaluator, or maintainer, in depth:
+
+1. **[`docs/REQUIREMENTS.md`](./docs/REQUIREMENTS.md)** — system requirements, capacity targets, compliance posture.
+2. **[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)** — full architecture, data flow, tenancy, fraud, resilience, observability, testing, migration paths.
+3. **[`docs/DESIGN_SYSTEM.md`](./docs/DESIGN_SYSTEM.md)** — UI/UX contract.
+4. **[`docs/IMPACT_EVIDENCE.md`](./docs/IMPACT_EVIDENCE.md)** — reproducible Lighthouse/axe/load-test evidence, user research plan, TCO model.
+5. **[`docs/SLA_TARGETS.md`](./docs/SLA_TARGETS.md)** — SLOs, observability, incident response, DPPA §19 breach runbook.
+6. **[`docs/STANDARDS_ALIGNMENT.md`](./docs/STANDARDS_ALIGNMENT.md)** — DPPA, NITA-U, ISO 42001, NIST AI RMF, OWASP ASVS, WCAG 2.2, World Bank LGAF, OpenHIE-Land.
+7. **[`docs/audit/AUDIT_PACKAGE.md`](./docs/audit/AUDIT_PACKAGE.md)** — one-page index of artefacts + reproduction recipe.
+8. **[`docs/audit/CODEBASE_MAP.md`](./docs/audit/CODEBASE_MAP.md)** — file-by-file inventory of the current repo state.
+9. **[`docs/audit/THREAT_MODEL.md`](./docs/audit/THREAT_MODEL.md)** — STRIDE-style threat model.
+10. **[`docs/TEAM.md`](./docs/TEAM.md)** — team, governance, capacity-building commitments.
+11. **[`MAINTAINERS.md`](./MAINTAINERS.md)** — review thresholds and security-contact path.
+12. **[`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)** — Contributor Covenant 2.1.
+13. **[`CHANGELOG.md`](./CHANGELOG.md)** — dated CVE/dep/architecture timeline.
+14. **[`docs/AI_ETHICS_CHARTER.md`](./docs/AI_ETHICS_CHARTER.md)** — human-in-the-loop policy.
+15. **[`docs/CUSTODY.md`](./docs/CUSTODY.md)** — 3-of-5 multi-sig signer plan.
+16. **[`docs/GOVERNANCE.md`](./docs/GOVERNANCE.md)** — DPPA-2019 compliance posture.
+17. **[`docs/USSD_DEPLOYMENT.md`](./docs/USSD_DEPLOYMENT.md)** — USSD pathway deployment guide.
+18. **[`docs/moa-templates/MoLHUD-Mityana-Pilot-MOU.md`](./docs/moa-templates/MoLHUD-Mityana-Pilot-MOU.md)** — drop-in pilot MOU template.
+19. **[`docs/adr/`](./docs/adr/)** — architecture decision records: 0001 dual-Merkle, 0002 zero-trust posture, 0003 regional-chain migration.
+20. **[`DEMO_RUNBOOK.md`](./DEMO_RUNBOOK.md)** — 25 June 2026 showcase script + recovery procedures.
+21. **[`QUICKSTART.md`](./QUICKSTART.md)** — five-minute local bring-up.
+
+**Reproducible evidence scripts** (project-root `scripts/`):
+
+| Script | Produces | Bound to |
+|---|---|---|
+| `bash scripts/generate_sbom.sh` | `evidence/sbom/*.json` (CycloneDX SBOMs + SHA-256) | `docs/IMPACT_EVIDENCE.md` §3.1 |
+| `bash scripts/lighthouse_ci.sh` | `evidence/lighthouse/<ts>/*.json|.html` | `docs/IMPACT_EVIDENCE.md` §1.1 |
+| `bash scripts/load_test.sh` | `evidence/load/<ts>/summary.json` | `docs/SLA_TARGETS.md` §2 |
 
 ## Five-minute setup
 
@@ -120,6 +140,28 @@ export SEPOLIA_RPC_URL=...
 export SEPOLIA_REGISTRAR_PRIVATE_KEY=0x...
 docker compose -f docker-compose.yml -f docker-compose.sepolia.yml up -d --build
 ```
+
+## Hosting & CI/CD (sovereign by default)
+
+LandGuard hosts on **Crane Cloud** (Makerere AI Lab's Uganda-resident
+Platform-as-a-Service) for sovereignty reasons documented in
+[`docs/STANDARDS_ALIGNMENT.md`](./docs/STANDARDS_ALIGNMENT.md) §1.2.
+
+| Concern | File |
+|---|---|
+| What gets deployed (image, port, env names) | [`infra/cranecloud/manifest.yaml`](./infra/cranecloud/manifest.yaml) |
+| Make-driven deploy wrappers | [`infra/cranecloud/Makefile`](./infra/cranecloud/Makefile) |
+| Per-environment templates (staging / pilot / production) | [`infra/cranecloud/environments/`](./infra/cranecloud/environments/) |
+| Full operator guide | [`infra/cranecloud/README.md`](./infra/cranecloud/README.md) |
+
+GitHub Actions:
+
+| Workflow | Trigger | Purpose |
+|---|---|---|
+| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | every PR + push to main | backend tests, forge tests, frontend build, OSV-Scanner, docker-build verify, SBOM artefact upload |
+| [`.github/workflows/build-push.yml`](./.github/workflows/build-push.yml) | push to main, `v*` tags, manual | builds + pushes both images to GHCR; auto-dispatches deploy for staging / pilot |
+| [`.github/workflows/deploy-cranecloud.yml`](./.github/workflows/deploy-cranecloud.yml) | dispatched by build-push.yml; or manual for production | operator-led Crane Cloud rollout with hard-fail fallback recipe |
+| [`.github/dependabot.yml`](./.github/dependabot.yml) | weekly Monday 06:00 Africa/Kampala | uv + npm + actions + docker dependency updates |
 
 ## Government readiness
 

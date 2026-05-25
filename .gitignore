@@ -14,8 +14,9 @@ node_modules/
 .next/
 out/
 .bun/
-bun.lock
 *.log
+# NOTE: bun.lock IS committed (frozen-lockfile reproducibility + SBOM
+# generation depend on it). Do not gitignore.
 
 # Foundry
 contracts/out/
@@ -36,3 +37,12 @@ backend/app/fraud/training/*.joblib
 .env.local
 *.local
 .claude/
+
+# Crane Cloud per-environment values (templates *.env.example are committed)
+infra/cranecloud/environments/*.env
+
+# Evidence artefacts — SBOMs are committed (dated submission artefact);
+# perf/accessibility runs are per-machine and uploaded as CI artefacts instead.
+evidence/lighthouse/
+evidence/load/
+evidence/probes/

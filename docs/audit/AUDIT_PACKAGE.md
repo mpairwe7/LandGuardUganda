@@ -19,6 +19,8 @@ NITA-U security, MoLHUD ICT, civil-society observers, academic partners).
 | Custody model | `docs/CUSTODY.md` | Five named signers, threshold, key custody plan |
 | MOU template | `docs/moa-templates/MoLHUD-Mityana-Pilot-MOU.md` | Pilot agreement starting point |
 | Threat model | `docs/audit/THREAT_MODEL.md` | Asset/threat/mitigation matrix |
+| Codebase map | `docs/audit/CODEBASE_MAP.md` | File-by-file inventory of the current repo state |
+| Changelog | `CHANGELOG.md` | Security + dependency timeline (CVE remediations) |
 
 ## Cryptographic invariants under test
 
@@ -47,7 +49,10 @@ NITA-U security, MoLHUD ICT, civil-society observers, academic partners).
 
 5. **Idempotency.** Submitting the same mutating endpoint twice with the
    same ``Idempotency-Key`` MUST return the cached response, not re-execute.
-   *Tested in*: ``backend/tests/test_idempotency.py``.
+   *Implementation*: ``backend/app/middleware/idempotency.py``. A
+   dedicated ``test_idempotency.py`` is on the open-tracker; the property
+   is exercised indirectly by ``test_anchor_service.py`` and
+   ``test_verify_endpoint.py`` today.
 
 ## How to reproduce a verification from scratch
 
