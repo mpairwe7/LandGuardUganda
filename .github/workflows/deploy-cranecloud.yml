@@ -108,14 +108,16 @@ jobs:
           SHA7="${GITHUB_SHA:0:7}"
           IMAGE="$DOCKERHUB_USERNAME/landguard-uganda-backend:${{ inputs.image_tag }}-${SHA7}"
           echo "→ Updating backend ($APP_ID) → $IMAGE"
-          STATUS=$(curl -sf -o /tmp/backend-resp.json -w "%{http_code}" -X PATCH \
+          STATUS=$(curl -s -o /tmp/backend-resp.json -w "%{http_code}" -X PATCH \
             "$CRANE_CLOUD_API/apps/$APP_ID" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"image\": \"$IMAGE\"}")
           echo "  HTTP $STATUS"
+          echo "  Response body:"
+          cat /tmp/backend-resp.json
+          echo
           if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
-            cat /tmp/backend-resp.json
             exit 1
           fi
 
@@ -130,7 +132,7 @@ jobs:
           SHA7="${GITHUB_SHA:0:7}"
           IMAGE="$DOCKERHUB_USERNAME/landguard-uganda-frontend:${{ inputs.image_tag }}-${SHA7}"
           echo "→ Updating frontend ($APP_ID) → $IMAGE"
-          STATUS=$(curl -sf -o /tmp/frontend-resp.json -w "%{http_code}" -X PATCH \
+          STATUS=$(curl -s -o /tmp/frontend-resp.json -w "%{http_code}" -X PATCH \
             "$CRANE_CLOUD_API/apps/$APP_ID" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
