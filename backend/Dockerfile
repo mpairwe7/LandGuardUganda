@@ -19,10 +19,21 @@ RUN uv pip install --system .
 COPY app ./app
 COPY scripts ./scripts
 
+# Per mpairwe7/MLOPS_V1 Crane Cloud deployment pattern (Dockerfile.cpu
+# line 121: `mkdir -p <writable dirs> && chown -R <user>:<user> /app`).
+# Without this Crane Cloud's pod crashes immediately with PermissionError —
+# apply_migrations() can't create the SQLite WAL, joblib can't load the
+# trained model, anchor_service can't write contract_address.json.
+RUN mkdir -p /app/data_store /app/app/fraud/training \
+    && chown -R landguard:landguard /app
+
 USER landguard
 EXPOSE 8000
 
-HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
+# start-period=60s matches MLOPS_V1's Crane Cloud pattern — gives the pod
+# time to apply migrations + load the IsolationForest joblib + bind 0.0.0.0
+# before Crane Cloud's readiness probe declares it failed.
+HEALTHCHECK --interval=15s --timeout=3s --start-period=60s --retries=3 \
     CMD curl -fsS http://localhost:8000/healthz || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
