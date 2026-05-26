@@ -85,9 +85,17 @@ async function visitRoute(page: Page, spec: RouteSpec): Promise<RouteReport> {
       url.includes("landguard-backend") ||
       url.includes("/api/v1/") ||
       url.includes("/api/chain-status");
+    const sameOrigin = url.startsWith(page.url().replace(/\/[^/]*$/, "")) ||
+      url.startsWith(process.env.BASE_URL ?? "");
     // 401 on role-gated pages is expected for an anonymous viewer.
     const allowed401 = spec.requiresAuth && status === 401;
-    if (status >= 500 || (isApi && (status < 200 || status >= 300) && !allowed401)) {
+    // Allow third-party tile errors when the route specifies allowConsole.
+    const isTile = /tile\.openstreetmap\.org|fonts\.|maptiler/.test(url);
+    if (
+      status >= 500 ||
+      (isApi && (status < 200 || status >= 300) && !allowed401) ||
+      (sameOrigin && status >= 400 && status !== 401 && !isTile)
+    ) {
       failedRequests.push({ url, status, method: resp.request().method() });
     }
   };
