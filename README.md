@@ -246,4 +246,4 @@ audience verifies (smartphone + feature phone) → resilience. See
 
 ## Contact
 
-**LandGuard Uganda Team** · `kalemaaaaaaaa@gmail.com`
+**LandGuard Uganda Team** · `mpairwelauben75@gmail.com`

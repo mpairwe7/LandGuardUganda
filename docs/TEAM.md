@@ -17,7 +17,7 @@ lose panel credibility.
 |---|---|
 | Name | Kalema (project lead) |
 | GitHub | <https://github.com/mpairwe7> |
-| Email | `kalemaaaaaaaa@gmail.com` |
+| Email | `mpairwelauben75@gmail.com` |
 | Role | Architecture, implementation, demo |
 | Verifiable artefacts | All commits in <https://github.com/mpairwe7/LandGuardUganda> are signed by this email; `git shortlog -sne` matches |
 
@@ -134,7 +134,7 @@ Hiring is conditional on pilot MOU; this section is documentation of
 ## 7. Code of Conduct
 
 The repository adopts the [Contributor Covenant 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
-Enforcement contact: `kalemaaaaaaaa@gmail.com`. A separate
+Enforcement contact: `mpairwelauben75@gmail.com`. A separate
 `CODE_OF_CONDUCT.md` lives at the repo root.
 
 ---

@@ -171,7 +171,7 @@ a printed proof hash for manual comparison.
 >  LandGuard to the National Innovator Registry."
 
 **On screen:** Single CTA slide with the MOU template URL, the GitHub repo,
-and `kalemaaaaaaaa@gmail.com`. Hand the printed MOU draft to the senior
+and `mpairwelauben75@gmail.com`. Hand the printed MOU draft to the senior
 evaluator if appropriate.
 
 ## What MUST work flawlessly

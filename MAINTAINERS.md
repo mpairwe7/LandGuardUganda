@@ -8,7 +8,7 @@ review threshold before merge.
 
 | Handle | Areas of responsibility | Contact |
 |---|---|---|
-| `@mpairwe7` | All (sole maintainer for the prototype phase) | `kalemaaaaaaaa@gmail.com` |
+| `@mpairwe7` | All (sole maintainer for the prototype phase) | `mpairwelauben75@gmail.com` |
 
 When the pilot starts (post-25 June 2026), at least two additional
 maintainers will be added under the rules in `docs/TEAM.md` §6.
@@ -50,7 +50,7 @@ The path is intentionally short and merit-based:
 ## Security reports
 
 **Do not open public issues for security vulnerabilities.** Send a
-signed email to `kalemaaaaaaaa@gmail.com` (PGP key fingerprint:
+signed email to `mpairwelauben75@gmail.com` (PGP key fingerprint:
 *pending publication on the GitHub profile before 2026-06-01*). We
 target ≤ 72-hour acknowledgement and a coordinated-disclosure window
 of ≤ 90 days for high-severity findings.

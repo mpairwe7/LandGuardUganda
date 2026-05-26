@@ -208,10 +208,10 @@ export default function PublicLanding() {
               </p>
               <p className="mt-2 leading-relaxed">
                 <a
-                  href="mailto:kalemaaaaaaaa@gmail.com"
+                  href="mailto:mpairwelauben75@gmail.com"
                   className="text-slate-700 underline underline-offset-4"
                 >
-                  kalemaaaaaaaa@gmail.com
+                  mpairwelauben75@gmail.com
                 </a>
               </p>
             </div>

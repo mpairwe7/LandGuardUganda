@@ -9,7 +9,7 @@
 3. **The National Information Technology Authority — Uganda** (NITA-U),
    represented by the Executive Director, P.O. Box 33151, Kampala ("NITA-U");
 4. **LandGuard Uganda**, c/o [—], represented by the Project Lead, with
-   contact ``kalemaaaaaaaa@gmail.com`` ("LandGuard").
+   contact ``mpairwelauben75@gmail.com`` ("LandGuard").
 
 Collectively, **the Parties**.
 

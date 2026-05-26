@@ -9,7 +9,7 @@ by its terms.
 Instances of abusive, harassing, or otherwise unacceptable behaviour
 may be reported confidentially to the project lead:
 
-**Email:** `kalemaaaaaaaa@gmail.com`
+**Email:** `mpairwelauben75@gmail.com`
 
 All complaints will be reviewed and investigated promptly and fairly.
 Privacy of the reporter will be respected. The project lead is

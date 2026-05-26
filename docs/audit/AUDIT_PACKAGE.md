@@ -105,5 +105,5 @@ curl -X POST http://localhost:8000/api/v1/verify/title \
 
 ## Contact
 
-For audit-coordination matters: `kalemaaaaaaaa@gmail.com`. We welcome
+For audit-coordination matters: `mpairwelauben75@gmail.com`. We welcome
 findings, redaction requests, and follow-up access to a sandbox deployment.

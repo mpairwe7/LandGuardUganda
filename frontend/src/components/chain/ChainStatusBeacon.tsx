@@ -37,7 +37,7 @@ export function ChainStatusBeacon() {
     }
   }, [data, setBreaker]);
 
-  const breakerOpen = data?.details.anchor_breaker === "open";
+  const breakerOpen = data?.details?.anchor_breaker === "open";
   const status = !data?.ok ? "down" : breakerOpen ? "queued" : "live";
   const color =
     status === "down"
