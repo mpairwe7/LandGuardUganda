@@ -134,7 +134,13 @@ def create_app() -> FastAPI:
     app.include_router(fraud.router)
     app.include_router(nira.router)
     app.include_router(admin.router)
-    if settings.demo_mode and settings.app_env != "production":
+    # Demo control panel is intended for the showcase storyboard
+    # (Acts 1–5). Gate on app_env only: any non-production deploy can
+    # serve it. Per-endpoint guards in demo.py still check app_env,
+    # and Settings.assert_prod_safety() ensures demo_mode is false in
+    # production deploys, so a real production environment can never
+    # reach this branch.
+    if settings.app_env != "production":
         app.include_router(demo.router)
 
     @app.exception_handler(Exception)

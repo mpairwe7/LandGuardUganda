@@ -43,11 +43,12 @@ async def optional_user(
     settings = get_settings()
     token = _extract_bearer(authorization)
 
-    # DEMO_MODE escape hatch: on-stage role switching via header.
-    # Strictly gated to non-production.
+    # Role-switcher escape hatch: on-stage role switching via header.
+    # Strictly gated to non-production deploys; production-safety asserts
+    # ensure assert_prod_safety() rejects this combination, so we only
+    # need the app_env check at runtime.
     if (
-        settings.demo_mode
-        and settings.app_env != "production"
+        settings.app_env != "production"
         and x_demo_role
         and not token
     ):

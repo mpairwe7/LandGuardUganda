@@ -23,10 +23,13 @@ router = APIRouter(prefix="/api/v1/demo", tags=["demo"])
 
 def _ensure_enabled() -> None:
     settings = get_settings()
+    # Single-source-of-truth gate: production deploys never serve the
+    # demo router (Settings.assert_prod_safety() ensures this is the
+    # only thing we need to check). We deliberately do NOT also require
+    # DEMO_MODE=true — that double-flag pattern caused a deployment
+    # footgun where the showcase /demo page silently 404'd.
     if settings.app_env == "production":
         raise HTTPException(status_code=403, detail="demo endpoints disabled in production")
-    if not settings.demo_mode:
-        raise HTTPException(status_code=403, detail="DEMO_MODE=false")
 
 
 @router.post("/rpc-kill")
