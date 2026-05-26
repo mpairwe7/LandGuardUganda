@@ -61,5 +61,30 @@ export default defineConfig({
           : undefined,
       },
     },
+    {
+      // Mobile project for mobile.spec.ts only. iPhone 15-ish viewport
+      // (390×844) reproduces the phone-class layout reliably. Uses the
+      // same headless-shell launcher so the GPU stays in-process and
+      // doesn't trip SIGTRAP on the sandbox runner.
+      name: "mobile-chromium",
+      testMatch: /mobile\.spec\.ts/,
+      use: {
+        ...devices["Pixel 5"],
+        launchOptions: useShell
+          ? {
+              executablePath: headlessShell,
+              args: [
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--in-process-gpu",
+                "--use-gl=angle",
+                "--use-angle=swiftshader",
+                "--enable-unsafe-swiftshader",
+                "--disable-features=VizDisplayCompositor",
+              ],
+            }
+          : undefined,
+      },
+    },
   ],
 });

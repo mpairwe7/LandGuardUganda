@@ -80,7 +80,7 @@ export function MerkleProofVisualizer({
             initial={{ opacity: 0, x: -12 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.07, duration: 0.32, ease: "easeOut" }}
-            className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 rounded-md border border-slate-100 bg-slate-50/60 px-3 py-2"
+            className="grid grid-cols-[5.5rem_1fr] items-center gap-2 rounded-md border border-slate-100 bg-slate-50/60 px-3 py-2 sm:grid-cols-[7rem_1fr_auto] sm:gap-3"
           >
             <span
               className={

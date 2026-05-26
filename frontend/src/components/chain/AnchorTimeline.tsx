@@ -65,7 +65,7 @@ export function AnchorTimeline({ districtId }: { districtId?: number }) {
         {data.items.map((a) => (
           <li
             key={a.batch_id}
-            className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-3 first:pt-0 last:pb-0"
+            className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:grid sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-4"
           >
             <div className="min-w-0">
               <Link
@@ -79,13 +79,15 @@ export function AnchorTimeline({ districtId }: { districtId?: number }) {
                 {formatTs(a.anchored_at)}
               </p>
             </div>
-            <div className="text-right text-xs text-slate-600">
+            <div className="text-xs text-slate-600 sm:text-right">
               <HashDisplay value={a.tx_hash} head={6} tail={4} copy={false} />
               <p className="mt-0.5 tabular-nums">block {a.block_number ?? "—"}</p>
             </div>
-            <StatusPill kind={a.status === "CONFIRMED" ? "verified" : "pending"}>
-              {a.status}
-            </StatusPill>
+            <div className="self-start sm:self-auto">
+              <StatusPill kind={a.status === "CONFIRMED" ? "verified" : "pending"}>
+                {a.status}
+              </StatusPill>
+            </div>
           </li>
         ))}
       </ol>

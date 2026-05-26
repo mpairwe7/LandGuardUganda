@@ -55,13 +55,15 @@ export default function CitizenPage() {
           <li key={p.parcel_id}>
             <Link
               href={`/titles/${encodeURIComponent(p.parcel_id)}`}
-              className="card-surface grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 transition-colors hover:border-guard-300 hover:bg-guard-50/30"
+              // Phones: icon + body wrap to one line, status pill + chevron
+              // drop to a second line. Desktops keep the 4-col layout.
+              className="card-surface flex flex-wrap items-center gap-3 transition-colors hover:border-guard-300 hover:bg-guard-50/30 sm:grid sm:grid-cols-[auto_1fr_auto_auto] sm:gap-4"
             >
               <span className="rounded-md bg-guard-50 p-2 text-guard-700">
                 <MapPin className="size-4" aria-hidden />
               </span>
-              <div className="min-w-0">
-                <p className="font-mono text-sm font-medium text-slate-900 redactable">
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-sm font-medium text-slate-900 redactable break-all">
                   {p.parcel_id}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
@@ -72,7 +74,7 @@ export default function CitizenPage() {
                 {p.status}
               </StatusPill>
               <ChevronRight
-                className="size-4 text-slate-400"
+                className="ml-auto size-4 text-slate-400 sm:ml-0"
                 aria-label="View"
               />
             </Link>

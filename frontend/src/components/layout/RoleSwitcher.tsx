@@ -26,7 +26,9 @@ export function RoleSwitcher() {
     <div className="flex items-center gap-2">
       <label
         htmlFor="role-switcher"
-        className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400"
+        // Visible label at sm:+, sr-only on phones (the select itself
+        // remains accessible by its `id`-paired label).
+        className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 sr-only sm:not-sr-only"
       >
         Demo role
       </label>

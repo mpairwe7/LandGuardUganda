@@ -181,7 +181,7 @@
   /* ---- Officer console chrome ---- */
 
   .officer-header {
-    @apply sticky top-0 z-30 flex h-12 items-center justify-between border-b border-guard-900 bg-guard-950 px-6 text-white;
+    @apply sticky top-0 z-30 flex h-12 items-center justify-between border-b border-guard-900 bg-guard-950 px-3 text-white sm:px-6;
   }
   .officer-sidebar {
     @apply h-full bg-guard-900 text-slate-100;
