@@ -49,23 +49,33 @@ for (const path of PUBLIC_ROUTES) {
   });
 }
 
-test("mobile: public hamburger menu opens and links work", async ({ page }) => {
+test("mobile: landing-page hamburger menu opens and links work", async ({ page }) => {
   await gotoWithRetry(page, "/");
-  // The inline desktop nav must be hidden; the hamburger must be visible.
+  const hamburger = page.getByRole("button", { name: /open site menu/i });
+  await expect(hamburger).toBeVisible();
+  await hamburger.click();
+  const dialog = page.getByRole("dialog", { name: /open site menu/i });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /verify a title/i })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /explore districts/i })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /anchor explorer/i })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /sign in/i })).toBeVisible();
+  await dialog.getByRole("link", { name: /verify a title/i }).click();
+  await page.waitForURL("**/verify", { timeout: 10_000 });
+});
+
+test("mobile: public-registry hamburger menu opens and links work", async ({ page }) => {
+  await gotoWithRetry(page, "/verify");
   const hamburger = page.getByRole("button", { name: /open public registry menu/i });
   await expect(hamburger).toBeVisible();
   await hamburger.click();
-
-  // Drawer renders the three nav links.
   const dialog = page.getByRole("dialog", { name: /open public registry menu/i });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("link", { name: /verify a title/i })).toBeVisible();
   await expect(dialog.getByRole("link", { name: /explore districts/i })).toBeVisible();
   await expect(dialog.getByRole("link", { name: /anchor explorer/i })).toBeVisible();
-
-  // Clicking a link navigates and auto-closes the drawer.
-  await dialog.getByRole("link", { name: /verify a title/i }).click();
-  await page.waitForURL("**/verify", { timeout: 10_000 });
+  await dialog.getByRole("link", { name: /explore districts/i }).click();
+  await page.waitForURL("**/explore", { timeout: 10_000 });
 });
 
 test("mobile: app console hamburger menu exposes role nav", async ({ page }) => {

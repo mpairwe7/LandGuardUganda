@@ -11,6 +11,7 @@ import {
 import { LatestAnchorBadge } from "@/components/chain/LatestAnchorBadge";
 import { MinistryHeader } from "@/components/layout/MinistryHeader";
 import { CoatOfArmsMark } from "@/components/layout/CoatOfArmsMark";
+import { MobileMenu } from "@/components/layout/MobileMenu";
 import { StatusPill } from "@/components/common/StatusPill";
 
 export const dynamic = "force-dynamic";
@@ -29,11 +30,11 @@ export default function PublicLanding() {
 
       {/* Application chrome under the ministry band */}
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-officer items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-2.5">
+        <div className="mx-auto flex max-w-officer items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:py-4">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5">
             <CoatOfArmsMark size={32} />
-            <span>
-              <span className="block font-serif text-base font-semibold leading-none text-slate-900">
+            <span className="min-w-0">
+              <span className="block truncate font-serif text-base font-semibold leading-none text-slate-900">
                 LandGuard
               </span>
               <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
@@ -41,7 +42,8 @@ export default function PublicLanding() {
               </span>
             </span>
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
+          {/* Inline nav — md:+ only so it doesn't try to fit on a phone. */}
+          <nav className="hidden items-center gap-1 text-sm md:flex">
             <Link href="/verify" className="btn-tertiary px-3">
               Verify a title
             </Link>
@@ -55,10 +57,66 @@ export default function PublicLanding() {
               Sign in
             </Link>
           </nav>
+          {/* Compact phone nav: keep the primary CTA visible, fold
+              everything else into the hamburger. */}
+          <div className="flex items-center gap-2 md:hidden">
+            <Link
+              href="/verify"
+              className="btn-primary px-3 py-1.5 text-xs"
+            >
+              Verify
+            </Link>
+            <MobileMenu
+              triggerLabel="Open site menu"
+              side="right"
+              triggerClassName="inline-flex size-9 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guard-600 focus-visible:ring-offset-2"
+              headerSlot={
+                <div className="flex items-center gap-2.5">
+                  <CoatOfArmsMark size={24} />
+                  <span>
+                    <span className="block font-serif text-sm font-semibold leading-none text-slate-900">
+                      LandGuard
+                    </span>
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                      Uganda
+                    </span>
+                  </span>
+                </div>
+              }
+            >
+              <nav className="flex flex-col gap-1 text-sm" aria-label="Site navigation">
+                <Link
+                  href="/verify"
+                  className="rounded-md px-3 py-2 text-slate-800 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guard-600"
+                >
+                  Verify a title
+                </Link>
+                <Link
+                  href="/explore"
+                  className="rounded-md px-3 py-2 text-slate-800 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guard-600"
+                >
+                  Explore districts
+                </Link>
+                <Link
+                  href="/anchors"
+                  className="rounded-md px-3 py-2 text-slate-800 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guard-600"
+                >
+                  Anchor explorer
+                </Link>
+                <div className="my-2 h-px bg-slate-200" aria-hidden />
+                <Link
+                  href="/citizen"
+                  className="btn-primary mx-1 justify-center"
+                >
+                  Sign in
+                </Link>
+              </nav>
+            </MobileMenu>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-officer px-6 py-12 lg:py-20">
+      <main className="mx-auto max-w-officer px-4 py-8 sm:px-6 sm:py-12 lg:py-20">
         {/* HERO ----------------------------------------------------------- */}
         <section className="grid items-start gap-12 lg:grid-cols-[1.15fr_1fr]">
           <div className="space-y-7">
