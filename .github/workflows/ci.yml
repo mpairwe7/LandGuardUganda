@@ -32,7 +32,11 @@ jobs:
         run: uv python install 3.12
 
       - name: Sync dependencies
-        run: uv sync --frozen
+        # `--extra dev` brings in ruff / mypy / pytest from
+        # [project.optional-dependencies].dev — without it the
+        # Lint / Type-check / Tests steps below fail with
+        # "Failed to spawn: ruff" on a fresh runner.
+        run: uv sync --frozen --extra dev
 
       - name: Lint (ruff)
         run: uv run ruff check app tests
