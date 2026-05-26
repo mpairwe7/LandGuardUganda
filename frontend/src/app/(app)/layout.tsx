@@ -96,7 +96,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 function NavGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      {/* Label sits on the dark guard-900 sidebar — slate-500 fails
+          WCAG AA (2.74:1). slate-300 gives ~8.8:1 while keeping the
+          quiet hierarchy of the group headers. */}
+      <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
         {label}
       </p>
       <ul className="mt-1 space-y-0.5">{children}</ul>

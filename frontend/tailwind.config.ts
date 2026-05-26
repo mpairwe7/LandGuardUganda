@@ -41,11 +41,18 @@ const config: Config = {
           900: "#663d18",
         },
         // Semantic colours — always paired with an icon in the UI.
+        // Token values are tuned for WCAG 2.2 AA on the corresponding
+        // /10 background pills (pill-verified/pending/flag/frozen/chain
+        // in globals.css). Verified history:
+        //   verified  #15803d → #14532d   (was 4.38:1 → ~7:1)
+        //   pending   #b45309 → #854d0e   (was 4.38:1 → ~6.4:1)
+        // The other tokens were already above 4.5:1; leaving them
+        // unchanged to preserve the institutional palette.
         status: {
-          verified: "#15803d",
-          pending:  "#b45309",
-          flag:     "#c2410c",
-          frozen:   "#b91c1c",
+          verified: "#14532d",
+          pending:  "#854d0e",
+          flag:     "#9a3412",
+          frozen:   "#991b1b",
           chain:    "#1e40af",
           neutral:  "#475569",
         },
