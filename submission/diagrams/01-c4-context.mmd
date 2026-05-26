@@ -1,0 +1,46 @@
+flowchart TB
+    subgraph users["Users"]
+        C[<b>Citizens</b><br/>web · PWA · USSD<br/>NIN-linked]
+        SU[<b>Surveyors</b><br/>tablet PWA + map drawer<br/>MapLibre + Turf]
+        OF[<b>Land Officers</b><br/>tablet/desktop<br/>fraud review queue]
+        RG[<b>Registrars</b><br/>desktop<br/>title issuance]
+        AU[<b>Auditors / NGOs / journalists</b><br/>any device<br/>verifier only]
+    end
+
+    LG[("<b>LandGuard Uganda</b><br/>Hash-chained ledger<br/>+ on-chain Merkle anchor<br/>DPPA-compliant")]
+
+    subgraph externals["External systems (Uganda)"]
+        N[NIRA<br/>National Identity]
+        ML[MoLHUD LIS<br/>legacy registry]
+        UCC[UCC USSD gateway<br/>*247*256#]
+        SMS[Africa's Talking<br/>SMS verifier]
+    end
+
+    subgraph chain["Public blockchain"]
+        SEP[Ethereum Sepolia<br/>then EAC permissioned]
+        MS[3-of-5 MultiSigRegistrar<br/>MoLHUD · NITA-U · District<br/>· LandGuard · Independent observer]
+    end
+
+    subgraph gov["Government Cloud / NITA-U"]
+        K[NITA-U KMS<br/>PII keys + signer custody]
+        S[NITA-U SIEM<br/>structured audit feed]
+    end
+
+    C -. "HTTPS · TLS 1.3" .-> LG
+    SU -. "HTTPS · TLS 1.3" .-> LG
+    OF -. "HTTPS · TLS 1.3" .-> LG
+    RG -. "HTTPS · TLS 1.3" .-> LG
+    AU -. "verify only · no auth" .-> LG
+    C -. "USSD *247*256#" .-> UCC
+    UCC -. "session callback" .-> LG
+    LG -. "SMS verify reply" .-> SMS
+
+    LG -. "NIN verify · OIDC" .-> N
+    LG -. "FHIR-LIS bridge (planned)" .-> ML
+
+    LG -. "Merkle-root commitBatch" .-> MS
+    MS -. "3-of-5 threshold" .-> SEP
+    AU -. "publicly verifiable proof" .-> SEP
+
+    LG -. "envelope-encrypt PII" .-> K
+    LG -. "audit log mirror" .-> S

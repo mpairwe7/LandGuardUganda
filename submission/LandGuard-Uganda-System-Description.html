@@ -1,0 +1,386 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body><h1>LandGuard Uganda</h1>
+<h2>Blockchain-Enhanced Land Administration &amp; Titling Support System — Submission for the MoICT&amp;NG Government Systems Prototype Showcase</h2>
+<p><strong>Thematic Area:</strong> #2 — Land Administration &amp; Titling Support
+<strong>Licence:</strong> Apache-2.0
+<strong>Repository:</strong> <a href="https://github.com/mpairwe7/LandGuardUganda">https://github.com/mpairwe7/LandGuardUganda</a> (open-source, public from day one)
+<strong>Live deploy:</strong> <a href="https://landguard-frontend-3d8aba74.renu-01.cranecloud.io">https://landguard-frontend-3d8aba74.renu-01.cranecloud.io</a> · backend <a href="https://landguard-backend-d1e66f33.renu-01.cranecloud.io">https://landguard-backend-d1e66f33.renu-01.cranecloud.io</a>
+<strong>Submission date:</strong> 26 May 2026
+<strong>Showcase event:</strong> 25 June 2026 · Serena Conference Centre, Kampala</p>
+<hr>
+<h2>1. Executive Summary</h2>
+<p>LandGuard Uganda is a <strong>sovereign, open-source, dual-layer land registry</strong> designed for adoption by the Ministry of Lands, Housing &amp; Urban Development (MoLHUD) and NITA-U. It pairs a <strong>per-district hash-chained audit ledger</strong> with an <strong>on-chain Merkle anchor</strong>, so every land title — issuance, transfer, KYC, dispute — can be verified independently by any citizen, journalist, lender, or court, anywhere in the world, with or without trust in LandGuard itself.</p>
+<p>The system addresses the structural problem that <strong>roughly 60 % of Uganda's land has unclear or contested ownership</strong> by making the registry <strong>publicly verifiable</strong> rather than relying on institutional trust alone. A single QR scan on a printed title yields a Merkle proof; a <em>247</em>256# USSD dial verifies the same title from a feature phone. Forgery is detectable in milliseconds; tampering with the registry is computationally infeasible without breaking a public blockchain.</p>
+<p>LandGuard is <strong>production-grade by construction</strong>: 3-of-5 multi-signature custody of the on-chain registrar role (MoLHUD, NITA-U, district board, LandGuard, independent observer); AES-GCM 256 envelope encryption of NIN at rest with DPPA-2019 §26 erasure tombstones; circuit breakers on every external dependency; an idempotency middleware on every unsafe POST; a fraud-detection pipeline that <strong>requires human affirmation before any title is FROZEN</strong> (no auto-freeze invariant, documented in <code>docs/AI_ETHICS_CHARTER.md</code>).</p>
+<p>The platform is <strong>ready for the Mityana pilot in October 2026</strong> and is engineered to scale to all 130 districts and ~32 million NIN-bearing citizens without architectural rewrite. The MOU draft with Mityana District Land Board is in <code>docs/moa-templates/</code>.</p>
+<hr>
+<h2>2. System Overview</h2>
+<p>LandGuard serves five distinct audiences through one backbone:</p>
+<table>
+<thead>
+<tr>
+<th>Audience</th>
+<th>Surface</th>
+<th>Authentication</th>
+<th>Primary use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Citizens</strong></td>
+<td>Mobile-first PWA · USSD <code>*247*256#</code> · SMS</td>
+<td>NIN + OTP (production: NIRA OIDC)</td>
+<td>Verify any title; view own parcels; receive transfer notifications</td>
+</tr>
+<tr>
+<td><strong>Surveyors</strong></td>
+<td>Tablet PWA with MapLibre + Turf overlap detection</td>
+<td>Staff IdP (production: Keycloak/NITA-U OIDC)</td>
+<td>Draw parcel polygons; submit boundaries with real-time conflict checks</td>
+</tr>
+<tr>
+<td><strong>Land Officers</strong></td>
+<td>Tablet / desktop</td>
+<td>Staff IdP, role-scoped to district</td>
+<td>KYC NIN-verification queue; fraud-review queue with explainable AI</td>
+</tr>
+<tr>
+<td><strong>Registrars</strong></td>
+<td>Desktop</td>
+<td>Staff IdP, REGISTRAR role</td>
+<td>Title issuance; transfer approval; manual anchor flush</td>
+</tr>
+<tr>
+<td><strong>Auditors / NGOs / journalists / lenders</strong></td>
+<td>Any device — <code>/verify</code> is public, no login</td>
+<td>None</td>
+<td>Verify any title; inspect the audit chain; consume on-chain Merkle proofs</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Figure 1 — C4 System Context. Citizens, surveyors, officers, registrars, and auditors all interact with LandGuard, which talks to NIRA for identity, MoLHUD LIS, UCC USSD, the public Ethereum chain, and NITA-U Government Cloud." src="figures/01-c4-context.png"></p>
+<p><em>Figure 1 — System context. The auditor / citizen path on the right is </em><em>publicly verifiable</em><em> without any LandGuard credential.</em></p>
+<p>The architecture is <strong>dual-layer</strong>:</p>
+<ol>
+<li>
+<p><strong>Off-chain hash-chained ledger</strong> (<code>backend/app/audit/</code>) — every event (<code>PARCEL_REGISTERED</code>, <code>TITLE_ISSUED</code>, <code>TRANSFER_*</code>, <code>KYC_VERIFIED</code>, <code>DISPUTE_*</code>, <code>FRAUD_HUMAN_AFFIRMED</code>) is appended to a per-district SQLite-WAL/Postgres ledger with <code>seq</code>, <code>prev_hash</code>, <code>payload_hash</code>, <code>row_hash</code>. <strong>Tamper-evident</strong> by construction; an auditor can re-walk the chain and verify integrity in seconds.</p>
+</li>
+<li>
+<p><strong>On-chain Merkle anchor</strong> (<code>contracts/LandRegistryAnchor.sol</code>) — every N seconds the anchor service builds a Merkle root from the unanchored events of each district and commits it via the 3-of-5 <code>MultiSigRegistrar</code>. The root lives on Ethereum Sepolia (pilot) and is committable to any EAC-region permissioned chain at national rollout (ADR-0003).</p>
+</li>
+</ol>
+<p>The <strong>dual-Merkle regime</strong> (ADR-0001) is the cryptographic bridge: events are hashed with SHA-256 off-chain for ergonomic verification by any HTTP client; the same leaves are re-hashed with Keccak-256 sorted-pair Merkle for on-chain proof verification by <code>MerkleProof.verify</code>. The two trees are bridged by <code>keccak(sha256_hex_leaf)</code>, formally equivalent and <strong>cross-tested in CI</strong> between Python and TypeScript implementations.</p>
+<hr>
+<h2>3. Key Features</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Value to MoLHUD / Citizen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Public Merkle-proof verifier</strong></td>
+<td>Any phone, any browser, any USSD line can verify a title independently of LandGuard. Forgery becomes computationally infeasible the moment a batch confirms on-chain.</td>
+</tr>
+<tr>
+<td><strong>3-of-5 multi-sig registrar</strong></td>
+<td>No single party — not even LandGuard — can commit a title. Five named signers: MoLHUD, NITA-U, district board, LandGuard backend, independent observer. Custody documented in <code>docs/CUSTODY.md</code>.</td>
+</tr>
+<tr>
+<td><strong>Hash-chained per-district ledger</strong></td>
+<td>Tamper-evident off-chain. Every state change has a verifiable predecessor hash. Auditor console walks the chain end-to-end in seconds.</td>
+</tr>
+<tr>
+<td><strong>Real-time polygon overlap detection</strong></td>
+<td>Surveyor draws on MapLibre; Turf.js flags geometry conflict with existing parcels before submission. Reduces boundary-dispute downstream load.</td>
+</tr>
+<tr>
+<td><strong>Human-in-the-loop fraud detection</strong></td>
+<td>IsolationForest + explicit rules (watchlist, rapid resale, duplicate NIN, geo-distance outlier). <strong>No auto-FREEZE</strong> invariant: only <code>FRAUD_HUMAN_AFFIRMED</code> transitions a title to FROZEN. Officers must record a clinical reason.</td>
+</tr>
+<tr>
+<td><strong>DPPA-2019 §26 right-to-erasure</strong></td>
+<td>NIN is AES-GCM-256 encrypted at rest with a hashed surrogate for queries. Erasure replaces <code>full_name</code> and re-keys the encrypted blob, leaving a tombstone audit event. Implementable per citizen request within ≤72 h.</td>
+</tr>
+<tr>
+<td><strong>DPPA-2019 §19 breach notification</strong></td>
+<td>Runbook in <code>docs/runbooks/dppa-breach-notification.md</code> — trigger criteria, hour-by-hour 72-h timeline, decision tree, role separation, PDPO + citizen-SMS templates, quarterly drill cadence.</td>
+</tr>
+<tr>
+<td><strong>Offline-aware public verifier</strong></td>
+<td>Service worker pre-caches <code>/verify</code>, the Merkle proof bundle, and the on-chain root. A citizen with a printed title can verify it offline against the last-known root.</td>
+</tr>
+<tr>
+<td><strong>USSD + SMS verifier</strong></td>
+<td>Public <code>*247*256#</code> shortcode + SMS shortcode reach citizens without smartphones. Same Merkle proof, same verdict.</td>
+</tr>
+<tr>
+<td><strong>Resilience-by-design</strong></td>
+<td>Circuit breakers on RPC and NIRA. Anchor-service queues during chain outage; UI flips ChainStatusBeacon to "queued" — <em>issuance never blocks on chain health</em>. Demonstrated in Act 5 of the showcase storyboard.</td>
+</tr>
+<tr>
+<td><strong>English + Luganda stubbed</strong></td>
+<td>Verifier page is the first locale-aware surface; Luganda working draft pending native-speaker review before pilot. Architecture scales to Lusoga / Runyankole / Luo / Acholi without code change.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>4. Technical Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Choice</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frontend</td>
+<td><strong>Next.js 16</strong> (App Router, RSC, PWA), TypeScript strict, Tailwind 4, Zustand, TanStack Query, MapLibre + Turf, IndexedDB</td>
+<td>Stateless, low-bandwidth, offline-capable public verifier; locally re-staffable from Makerere CoCIS and MUST graduates</td>
+</tr>
+<tr>
+<td>Backend</td>
+<td><strong>FastAPI 0.119+</strong>, Python 3.12+, Pydantic 2, async SQLAlchemy 2, structlog</td>
+<td>Async I/O for high concurrency on modest Crane Cloud hardware; strict schemas reject malformed input at ingress</td>
+</tr>
+<tr>
+<td>Database</td>
+<td><strong>SQLite WAL</strong> (pilot single-district) → <strong>PostgreSQL 16 + PostGIS</strong> (regional+)</td>
+<td>Pilot uses the simplest possible store; PostGIS scales to nationwide geometry queries</td>
+</tr>
+<tr>
+<td>Cache &amp; queue</td>
+<td><strong>Redis 7</strong></td>
+<td>Idempotency-key cache (24 h), fraud-scoring Redis stream, anchor-queue depth metric, rate-limit token buckets</td>
+</tr>
+<tr>
+<td>Smart contracts</td>
+<td><strong>Solidity 0.8.24</strong>, Foundry; OpenZeppelin v5 access-control + ECDSA + MerkleProof</td>
+<td>Audit-grade, tested with <code>forge test --gas-report</code>, ready for CERT-UG-accredited review</td>
+</tr>
+<tr>
+<td>On-chain</td>
+<td>Ethereum <strong>Sepolia</strong> (pilot, gas-free testnet) → <strong>EAC permissioned chain</strong> (national, ADR-0003)</td>
+<td>Permissionless for transparency; permissioned for cost predictability at national scale</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td><strong>OpenTelemetry</strong> (FastAPI, SQLAlchemy, Redis, HTTPX), structlog JSON logs, Prometheus metrics</td>
+<td>SIEM-ready out of the box (Loki, Splunk, Elastic, Wazuh); audit ledger doubles as security telemetry</td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td>Docker Compose for local dev; <strong>Crane Cloud RENU cluster</strong> for staging + pilot; Kubernetes-ready (12-factor)</td>
+<td>Runs on-premise or in NITA-U Government Cloud; CI/CD pipeline documented in <code>docs/CRANE_CLOUD_DEPLOYMENT.md</code></td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Figure 2 — Container diagram. The frontend pod serves HTML and the browser talks to the backend directly over CORS; the backend writes to the per-district audit ledger which feeds the anchor service." src="figures/02-c4-container.png"></p>
+<p><em>Figure 2 — Container topology. The browser→backend direct CORS path is required because Crane Cloud RENU pods have no outbound internet egress (verified empirically — see <code>docs/CRANE_CLOUD_DEPLOYMENT.md §9</code>).</em></p>
+<p>The architecture is documented through three Architecture Decision Records (ADR-0001 dual-Merkle regime, ADR-0002 zero-trust posture with Uganda extensions to NIST SP 800-207, ADR-0003 EAC chain migration path) plus six proposed ADRs that close documented residual risks before pilot.</p>
+<hr>
+<h2>5. Security &amp; Compliance</h2>
+<p>The security posture is <strong>falsifiable</strong> — every claim maps to a verifiable file or live endpoint in the repository.</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Control</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Data sovereignty (NITA-U)</td>
+<td>Runs on Crane Cloud RENU (Makerere AI Lab) or in NITA-U Government Cloud; no PII leaves Uganda</td>
+<td><code>docs/CRANE_CLOUD_DEPLOYMENT.md §10 Trust assumptions</code></td>
+</tr>
+<tr>
+<td>DPPA-2019 (article-by-article)</td>
+<td>§3 → §34 mapped to code or operational control</td>
+<td><code>docs/STANDARDS_ALIGNMENT.md</code>; <code>docs/audit/THREAT_MODEL.md</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>JWT (HS256 dev → RS256+JWKS via NIRA OIDC in production); pyjwt 2.12+; rate-limited login; <code>Settings.assert_prod_safety()</code> refuses dev defaults in <code>APP_ENV=production</code></td>
+<td><code>backend/app/auth/jwt_auth.py</code>; <code>backend/app/config.py:114</code></td>
+</tr>
+<tr>
+<td>Authorisation</td>
+<td>6-role hierarchy (CITIZEN &lt; SURVEYOR &lt; LAND_OFFICER &lt; REGISTRAR &lt; AUDITOR &lt; ADMIN) enforced at every endpoint via <code>require_role(...)</code>; X-Demo-Role escape hatch hard-gated to <code>app_env != "production"</code></td>
+<td><code>backend/app/auth/dependencies.py</code>; matrix in routers</td>
+</tr>
+<tr>
+<td>Audit &amp; accountability</td>
+<td>Append-only <code>audit_events</code> per district with <code>seq / prev_hash / payload_hash / row_hash</code>; emitted as structlog JSON for SIEM; <strong>best-effort</strong> — audit failures never crash user requests (Prometheus <code>audit_failure_total</code>)</td>
+<td><code>backend/app/audit/ledger.py</code></td>
+</tr>
+<tr>
+<td>On-chain integrity</td>
+<td>Every anchored batch confirmable independently via <code>MerkleProof.verify</code> on Sepolia; root + tx_hash + block_number returned by <code>/api/v1/anchors</code> (public, no auth)</td>
+<td><code>contracts/src/LandRegistryAnchor.sol</code>; <code>/api/v1/anchors/title/{title_no}/proof</code></td>
+</tr>
+<tr>
+<td>Custody — multi-sig</td>
+<td>3-of-5 <code>MultiSigRegistrar.sol</code> gates <code>commitBatch</code>; backend key is one signer; co-signer daemon runs the other four during pilot until HSM custody is finalised</td>
+<td><code>contracts/src/MultiSigRegistrar.sol</code>; <code>docs/CUSTODY.md</code>; <code>backend/scripts/co_sign_daemon.py</code></td>
+</tr>
+<tr>
+<td>PII at rest</td>
+<td>NIN encrypted with AES-GCM 256 (<code>backend/app/crypto.py</code>); SHA-256 surrogate for queries (<code>nin_hash</code>); per-pod KMS-managed key at production tier</td>
+<td><code>backend/app/crypto.py</code>; <code>backend/app/db/migrations/001_init.sql</code></td>
+</tr>
+<tr>
+<td>Right to erasure (DPPA §26)</td>
+<td><code>audit/ledger.py::erasure_tombstone()</code> replaces full_name + re-keys encrypted NIN; emits tombstone audit event; full audit chain remains verifiable</td>
+<td><code>backend/app/audit/ledger.py:278</code></td>
+</tr>
+<tr>
+<td>Breach notification (DPPA §19)</td>
+<td>PDPO 72-hour timeline; trigger criteria, decision tree, role separation, PDPO + citizen-SMS templates, quarterly tabletop drill</td>
+<td><code>docs/runbooks/dppa-breach-notification.md</code></td>
+</tr>
+<tr>
+<td>Threat model</td>
+<td>STRIDE per asset; out-of-scope statement; pentest scope sized at UGX 17–23 M</td>
+<td><code>docs/audit/THREAT_MODEL.md</code>; <code>docs/audit/PENTEST_SCOPE.md</code></td>
+</tr>
+<tr>
+<td>Dependency vulnerability mgmt</td>
+<td>Weekly Dependabot (uv + npm + actions + docker); OSV-Scanner in CI; CycloneDX 1.5 SBOM per release (backend + frontend + contracts)</td>
+<td><code>.github/dependabot.yml</code>; <code>evidence/sbom/</code></td>
+</tr>
+<tr>
+<td>Pentest</td>
+<td>CERT-UG-accredited / Makerere CSL preferred vendor; engagement window Aug 2026; 14-day remediation buffer before Oct 2026 pilot</td>
+<td><code>docs/audit/PENTEST_SCOPE.md §5</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Zero-trust posture</strong> (ADR-0002): NIST SP 800-207 seven tenets mapped, with three Uganda extensions — sovereignty (no PII leaves Uganda), cryptographic accountability (every privileged action is anchored), and least-privilege custody (no single signer can commit). The audit chain <em>is</em> the security telemetry; even if Crane Cloud's control plane lied, the cryptographic integrity claims hold.</p>
+<p><img alt="Figure 3 — Security boundaries. Public, role-gated, and on-chain trust zones with the three-of-five multi-sig custody layer between LandGuard and the chain." src="figures/04-security-boundaries.png"></p>
+<p><em>Figure 3 — Trust zones. The chain is a separate boundary from LandGuard; no single party — not even LandGuard itself — can commit a title.</em></p>
+<hr>
+<h2>6. Scalability &amp; Resilience</h2>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Pilot (Mityana, 1 district)</th>
+<th>Regional (10 districts)</th>
+<th>National (130 districts)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API replicas</td>
+<td>1 × (1 vCPU, 1 GB) on Crane Cloud</td>
+<td>4 × (2 vCPU, 2 GB)</td>
+<td>16 × (4 vCPU, 4 GB), HPA-enabled</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>SQLite WAL on persistent volume</td>
+<td>Postgres 16 + PostGIS primary + replica</td>
+<td>Patroni 3-node + PgBouncer, partitioned by district</td>
+</tr>
+<tr>
+<td>Redis</td>
+<td>Single node (fallback to in-memory)</td>
+<td>Sentinel HA</td>
+<td>Sentinel HA + cluster</td>
+</tr>
+<tr>
+<td>Chain</td>
+<td>Sepolia testnet</td>
+<td>Sepolia + EAC permissioned bridge</td>
+<td>EAC permissioned chain (ADR-0003)</td>
+</tr>
+<tr>
+<td>Estimated monthly cost (Crane Cloud)</td>
+<td>~ UGX 220 k</td>
+<td>~ UGX 1.8 M</td>
+<td>~ UGX 14 M</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Operational SLOs:</strong> API availability 99.5 % monthly; p95 latency &lt; 300 ms (verifier reads), &lt; 800 ms (title issuance writes); RPO 15 min / RTO 60 min; <strong>0 unrecoverable audit-log rows</strong> (anchor chain provides infinite-retention proof of every event); <strong>0 unauthenticated transfers</strong> (multi-sig invariant).</p>
+<p><strong>Resilience patterns</strong> are first-class and demonstrated live in the Act 5 showcase storyboard:</p>
+<ul>
+<li><strong>Circuit breakers</strong> per upstream (anchor RPC, NIRA, multi-sig co-signers). Half-open probing on recovery; <code>breaker_state</code> exposed in <code>/readyz</code> and the frontend ChainStatusBeacon.</li>
+<li><strong>Anchor queue</strong> persists during chain outage in the off-chain ledger; on recovery the queue drains FIFO and confirms in order.</li>
+<li><strong>NIRA fallback cache</strong> — last-known-good KYC verdicts survive an NIRA outage for the cache TTL window; circuit breaker prevents thundering herd on recovery.</li>
+<li><strong>Idempotency keys</strong> on every unsafe HTTP method (24-hour replay window in Redis).</li>
+<li><strong>Service-worker offline cache</strong> of the public verifier; a citizen can verify a printed title against the last cached on-chain root without network.</li>
+</ul>
+<p>A reproducible resilience demo runs in 30 seconds: <code>POST /api/v1/demo/rpc-kill</code> → titles continue issuing, anchors queue, beacon turns amber. <code>POST /api/v1/demo/rpc-restore</code> → queue drains, beacon returns to green. Runbook in <code>DEMO_RUNBOOK.md</code>.</p>
+<p><img alt="Figure 4 — Resilience flow. RPC failure trips the breaker; off-chain writes continue; the queue drains automatically on recovery without any operator intervention." src="figures/03-resilience-flow.png"></p>
+<p><em>Figure 4 — Resilience under chain outage. Sequence is reproducible live in the showcase via the demo control panel.</em></p>
+<hr>
+<h2>7. Local Innovation &amp; Sustainability</h2>
+<p>LandGuard is <strong>Ugandan by design, not by translation:</strong></p>
+<ul>
+<li><strong>NIN</strong> (14-char NIRA format) as primary citizen identifier — encrypted at rest, hashed for queries, never on chain.</li>
+<li><strong>UPI</strong> (<code>UG-&lt;district&gt;-&lt;parcel-number&gt;/&lt;year&gt;</code>) as Universal Parcel Identifier — Uganda's MoLHUD format, baked into the data model.</li>
+<li><strong>Mityana, Wakiso, Kampala Central, Gulu</strong> as the four pilot districts — real coordinates, real centres, real sub-counties.</li>
+<li><strong>MAILO / FREEHOLD / LEASEHOLD / CUSTOMARY</strong> tenure types — Uganda's actual land-tenure regime.</li>
+<li><strong>District → Sub-county → Parish → Village</strong> geography.</li>
+<li><strong>UGX</strong> for all consideration fields; <strong>+256</strong> phone validation; <strong>English + Luganda</strong> UI.</li>
+<li><strong>Mrs. Sarah Nakato of Mityana</strong> as the showcase hero protagonist — realistic Ugandan data, not Springfield placeholders.</li>
+</ul>
+<p><strong>Three measurable impact commitments</strong> for the 12-month Mityana pilot, with methodology in <code>docs/IMPACT_EVIDENCE.md</code>:</p>
+<ol>
+<li>Reduce time-to-resolve land-title disputes by 60 % (baseline 18 months in current registry → ≤ 7 months once on-chain proofs become court-admissible).</li>
+<li>Cut duplicate-/contested-title rate at pilot facilities by 80 % (estimated 5–9 % → ≤ 1.5 %).</li>
+<li>Achieve ≥ 90 % citizen-satisfaction score on the public verifier flow (USSD + web), measured by Mityana District Information Office quarterly survey.</li>
+</ol>
+<p><strong>Sustainability:</strong> pilot cost UGX 820 M; national-tier operating cost ~ UGX 14 M / month — well within a single MoLHUD ICT line item. <strong>Open-source under Apache-2.0</strong> with a formal multi-stakeholder governance model (ADR-0002 §7) that gives a <strong>DPO veto on privacy invariants</strong> and an <strong>independent-observer veto on multi-sig key generation</strong> — protecting the system's integrity guarantees after donation to MoLHUD.</p>
+<p><strong>Capacity-building commitments:</strong> monthly engineering office hours; annual CoCIS / MUST internship cohort; quarterly NITA-U technical sessions on the dual-Merkle pattern; annual open hackathon for new MoLHUD modules (boundary disputes, mortgage attestation, inheritance workflow).</p>
+<hr>
+<h2>8. Roadmap</h2>
+<table>
+<thead>
+<tr>
+<th>Window</th>
+<th>Milestone</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Pre-showcase (now → 25 Jun 2026)</strong></td>
+<td>Lighthouse / axe-core baselines published; demo dataset seeded; mobile responsiveness pass shipped; CI/CD green; Crane Cloud staging stable</td>
+</tr>
+<tr>
+<td><strong>Pre-pilot (Jul → Sep 2026)</strong></td>
+<td>CERT-UG / Makerere CSL pentest; DPIA external review; MoU signature with Mityana District Land Board; 3-of-5 HSM key generation; NIRA live-client integration (post-NIRA 2026 API spec ratification); Sepolia → mainnet-test cutover</td>
+</tr>
+<tr>
+<td><strong>Pilot (Oct 2026 → Sep 2027)</strong></td>
+<td>Mityana single-district pilot; measure the three impact commitments; quarterly restore drills + DPPA §19 tabletop</td>
+</tr>
+<tr>
+<td><strong>Regional (Oct 2027 → Dec 2028)</strong></td>
+<td>Expand to 10 districts (Wakiso, Kampala Central, Gulu, Mbale, Mbarara, Jinja, Lira, Masaka, Fort Portal, Soroti); EAC permissioned chain bridge (ADR-0003)</td>
+</tr>
+<tr>
+<td><strong>National (2029 → 2031)</strong></td>
+<td>Full 130-district rollout; replace Sepolia with EAC chain; bi-directional MoLHUD LIS sync; mortgage / inheritance modules</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>9. Readiness Statement</h2>
+<p>LandGuard Uganda is <strong>ready for the showcase walkthrough and for pilot deployment</strong> in October 2026 subject to MOU signature and NIRA-live integration. The platform is:</p>
+<ul>
+<li><strong>Technically complete</strong> for the showcase storyboard — Act 1 (citizen verifies a real title from a phone), Act 2 (surveyor draws a parcel polygon with live overlap detection), Act 3 (registrar issues a title and watches its Merkle root commit on-chain in real time), Act 4 (officer reviews an AI-flagged fraud signal and explicitly affirms before any title is frozen), Act 5 (we kill the chain RPC live on stage — the system keeps issuing titles, anchors queue, breaker pill flips amber, then drains green on restore).</li>
+<li><strong>Compliance-grounded</strong> — DPPA-mapped, threat-modelled, breach-runbook'd, with a CERT-UG pentest scheduled and a CycloneDX 1.5 SBOM checked into the repository for every dependency.</li>
+<li><strong>Sovereignty-preserving</strong> — runs on Crane Cloud RENU (Makerere) or in NITA-U Government Cloud; no PII leaves Uganda; the on-chain root is the only externally-visible artefact, and it carries no citizen data.</li>
+<li><strong>Locally sustainable</strong> — built on a stack Ugandan engineers already know; with governance, capacity-building, and pipeline commitments documented up front; donate-ready to MoLHUD under Apache-2.0.</li>
+</ul>
+<p>LandGuard is the open backbone Uganda needs to give every citizen a title that anyone can verify, end the structural epidemic of duplicate and contested ownership, and make the land-administration system that 60 % of the country's GDP rests on <strong>falsifiable by anyone with a phone</strong>. We invite the MoICT&amp;NG Technical Evaluation Panel to verify every claim above against the open repository, and we welcome the opportunity to partner with MoLHUD and NITA-U to deliver this digital public infrastructure to every Ugandan.</p>
+<hr>
+<p><strong>Contact for the panel:</strong> see <code>docs/TEAM.md</code> and <code>MAINTAINERS.md</code>. Email <code>mpairwelauben75@gmail.com</code>.</p>
+<p><strong>Verification entry point:</strong> <code>docs/SHOWCASE_EVALUATION_MAPPING.md</code> — every claim in this document maps to a primary-evidence file with a reviewer-runnable verification command. The full audit dossier (<code>docs/audit/CODEBASE_MAP.md</code>, <code>THREAT_MODEL.md</code>, <code>PENTEST_SCOPE.md</code>, <code>AUDIT_PACKAGE.md</code>) is in the repository's <code>docs/audit/</code> directory.</p></body></html>

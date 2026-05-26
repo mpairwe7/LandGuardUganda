@@ -1,0 +1,52 @@
+sequenceDiagram
+    autonumber
+    participant U as Citizen
+    participant FE as Frontend (PWA)
+    participant API as Backend API
+    participant AL as Audit Ledger
+    participant AS as Anchor Service
+    participant CB as Anchor Breaker
+    participant RPC as Ethereum RPC
+    participant SC as MultiSig + Anchor
+
+    Note over CB: STATE = CLOSED (RPC healthy)
+
+    U->>FE: register parcel
+    FE->>API: POST /api/v1/parcels
+    API->>AL: append PARCEL_REGISTERED event
+    AL-->>API: seq + hash
+    API-->>FE: 201 + idempotency-key
+
+    Note over RPC: Sepolia RPC fails<br/>(timeout or 5xx)
+
+    AS->>RPC: commitBatch(root)
+    RPC-->>AS: ERR / timeout
+    AS->>CB: register_failure()
+    Note over CB: STATE = OPEN
+
+    rect rgba(180, 90, 90, 0.12)
+        Note over AL,SC: Degraded mode — operations continue, anchors queue
+        U->>FE: register more parcels
+        FE->>API: POST /api/v1/parcels
+        API->>AL: append events (still tamper-evident off-chain)
+        AS->>CB: probe?
+        CB-->>AS: OPEN, defer
+        AS-->>AS: keep queue, retry every 30 s
+    end
+
+    Note over RPC: RPC recovers
+
+    AS->>CB: probe()
+    CB-->>AS: HALF_OPEN
+    AS->>RPC: commitBatch(root)
+    RPC-->>AS: tx hash
+    AS->>SC: confirm 3-of-5 threshold
+    SC-->>AS: receipt + block
+    AS->>CB: register_success()
+    Note over CB: STATE = CLOSED
+
+    rect rgba(90, 150, 90, 0.12)
+        Note over AS,SC: Queue drains. anchor_breaker → closed. UI flips to Chain live.
+        AS->>AL: mark batch CONFIRMED
+        FE-->>U: ChainStatusBeacon turns green
+    end

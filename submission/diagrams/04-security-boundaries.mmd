@@ -1,0 +1,79 @@
+flowchart LR
+    subgraph public["Public surface (no auth)"]
+        V[/api/v1/verify/title<br/>rate-limited 20/min/]
+        USSD[/api/v1/ussd<br/>rate-limited 10/min/]
+        AX[/api/v1/anchors* GET<br/>publicly readable/]
+        WEB[Frontend SPA + Service Worker<br/>offline verifier]
+    end
+
+    subgraph role["Role-gated surface (JWT)"]
+        CIT[CITIZEN<br/>own parcels + audit trail]
+        SUR[SURVEYOR<br/>parcel registration]
+        OFF[LAND_OFFICER<br/>KYC + fraud review]
+        REG[REGISTRAR<br/>title issuance + transfer]
+        AUD[AUDITOR<br/>chain integrity]
+        ADM[ADMIN<br/>districts + staff CRUD]
+    end
+
+    subgraph backend["Backend pod"]
+        VAL[Pydantic v2 strict-input<br/>+ Settings.assert_prod_safety]
+        AUTH[require_role / require_user<br/>X-Demo-Role gated by app_env]
+        AUDIT[Append-only audit ledger<br/>per-district hash chain]
+        PII[AES-GCM 256 envelope<br/>NIN encrypted at rest<br/>SHA-256 hashed for queries]
+        ER["DPPA §26 erasure tombstone<br/>full_name → '⟨erased⟩'"]
+    end
+
+    subgraph custody["Key custody — 3-of-5 multisig"]
+        K1[Key 1 · MoLHUD<br/>HSM-backed]
+        K2[Key 2 · NITA-U]
+        K3[Key 3 · District Board]
+        K4[Key 4 · LandGuard backend]
+        K5[Key 5 · Independent Observer]
+    end
+
+    subgraph chain["Public chain"]
+        ANCH[LandRegistryAnchor.sol<br/>commitBatch gated by MultiSig]
+    end
+
+    WEB --> V
+    WEB --> AX
+    WEB --> CIT
+    WEB --> SUR
+    WEB --> OFF
+    WEB --> REG
+    WEB --> AUD
+
+    V --> VAL
+    AX --> VAL
+    USSD --> VAL
+
+    CIT --> AUTH
+    SUR --> AUTH
+    OFF --> AUTH
+    REG --> AUTH
+    AUD --> AUTH
+    ADM --> AUTH
+
+    AUTH --> VAL
+    VAL --> AUDIT
+    AUDIT -. write .-> PII
+    PII -. erasure .-> ER
+
+    AUDIT -. Merkle root .-> K4
+    K1 --> ANCH
+    K2 --> ANCH
+    K3 --> ANCH
+    K4 --> ANCH
+    K5 --> ANCH
+
+    classDef pub fill:#e8f2ec,stroke:#14532d,color:#14532d;
+    classDef gated fill:#fef4e6,stroke:#854d0e,color:#854d0e;
+    classDef be fill:#eef2f6,stroke:#1e293b,color:#1e293b;
+    classDef cust fill:#f3e7f3,stroke:#7c3aed,color:#7c3aed;
+    classDef chn fill:#dbeafe,stroke:#1e40af,color:#1e40af;
+
+    class V,USSD,AX,WEB pub;
+    class CIT,SUR,OFF,REG,AUD,ADM gated;
+    class VAL,AUTH,AUDIT,PII,ER be;
+    class K1,K2,K3,K4,K5 cust;
+    class ANCH chn;

@@ -1,0 +1,57 @@
+flowchart TB
+    subgraph browsers["Browsers / phones"]
+        WB[Web · PWA<br/>Next.js 16 + React 19 + Tailwind 4]
+        PH[USSD feature phone<br/>Tecno T301 baseline]
+    end
+
+    subgraph frontend["Frontend pod (Crane Cloud)"]
+        FE[Next.js standalone server<br/>Bun runtime · CORS-direct]
+        SW[Service Worker<br/>offline verifier cache]
+    end
+
+    subgraph backend["Backend pod (Crane Cloud)"]
+        API[FastAPI 0.119+ · Python 3.12<br/>uvicorn · structlog · OTel]
+        ID[Idempotency middleware<br/>Redis-backed · 24h TTL]
+        AL[Audit ledger<br/>per-district hash chain]
+        AS[Anchor service<br/>batches every N seconds<br/>circuit breaker]
+        FR[Fraud worker<br/>IsolationForest + rules<br/>human-in-the-loop queue]
+        NR[NIRA client<br/>circuit breaker + cache]
+    end
+
+    subgraph data["Stateful tier"]
+        DB[(Postgres 16 + PostGIS<br/>SQLite WAL for pilot)]
+        RD[(Redis 7<br/>idempotency · fraud stream)]
+    end
+
+    subgraph chainlayer["On-chain layer"]
+        SC[LandRegistryAnchor.sol<br/>Solidity 0.8.24]
+        MS[MultiSigRegistrar.sol<br/>3-of-5 named signers]
+        EVM[Ethereum Sepolia<br/>mock/anvil in dev]
+    end
+
+    NIRA[NIRA Identity API]
+    UCC[UCC USSD gateway]
+
+    WB -. "static / JS bundle" .-> FE
+    WB -. "CORS · API · JSON" .-> API
+    PH -. "USSD *247*256#" .-> UCC
+    UCC -. "POST /api/v1/ussd" .-> API
+
+    FE -. "renders" .-> WB
+    SW -. "fallback for /verify" .-> WB
+
+    API -. "Bearer JWT · X-Demo-Role" .-> ID
+    ID -. "writes" .-> AL
+    API -. "calls" .-> NR
+    NR -. "OIDC · NIN verify" .-> NIRA
+    AL -. "flushes batches" .-> AS
+    AS -. "commitBatch root" .-> MS
+    MS -. "threshold" .-> SC
+    SC -. "tx" .-> EVM
+    API -. "enqueue score" .-> FR
+    FR -. "reads features" .-> DB
+
+    API <-. "ORM" .-> DB
+    ID <-. "key dedup · 24h" .-> RD
+    FR <-. "Redis stream" .-> RD
+    AS <-. "queue depth" .-> RD
