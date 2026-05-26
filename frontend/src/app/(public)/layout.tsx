@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChainStatusBeacon } from "@/components/chain/ChainStatusBeacon";
+import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { MinistryHeader } from "@/components/layout/MinistryHeader";
 import { CoatOfArmsMark } from "@/components/layout/CoatOfArmsMark";
 
@@ -33,6 +34,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <Link href="/anchors" className="btn-tertiary px-3">Anchors</Link>
             <span className="mx-2 h-5 w-px bg-slate-200" aria-hidden />
             <ChainStatusBeacon />
+            <span className="mx-2 h-5 w-px bg-slate-200" aria-hidden />
+            <LocaleSwitcher />
           </nav>
         </div>
       </header>

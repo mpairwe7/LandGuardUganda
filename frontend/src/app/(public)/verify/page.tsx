@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { ShieldCheck, ShieldAlert, ScanLine, ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
+import { useLocale } from "@/lib/i18n/useLocale";
 import { MerkleProofVisualizer } from "@/components/chain/MerkleProofVisualizer";
 import { QrScanner } from "@/components/verify/QrScanner";
 import { Button } from "@/components/common/Button";
@@ -32,6 +33,7 @@ interface VerifyResponse {
  * no chrome beyond the ministry attribution band.
  */
 export default function VerifyPage() {
+  const { t } = useLocale();
   const params = useSearchParams();
   const initial = params.get("title") ?? "";
   const [titleNo, setTitleNo] = useState(initial);
@@ -69,16 +71,13 @@ export default function VerifyPage() {
     <div className="mx-auto max-w-citizen space-y-8">
       <header className="space-y-2">
         <p className="text-caption uppercase tracking-[0.16em] text-slate-500">
-          Public verifier
+          {t("verify.eyebrow")}
         </p>
         <h1 className="font-serif text-3xl font-bold text-slate-900">
-          Verify a land title
+          {t("verify.title")}
         </h1>
         <p className="max-w-2xl text-sm leading-relaxed text-slate-600">
-          Paste a title number or scan its QR code. The system computes a
-          Merkle inclusion proof, recalls it from the off-chain ledger, and
-          asks the on-chain contract to confirm. No LandGuard credentials
-          needed — anyone can do this.
+          {t("verify.subtitle")}
         </p>
       </header>
 
@@ -95,13 +94,13 @@ export default function VerifyPage() {
         >
           <input
             type="text"
-            placeholder="UG-MIT-T00007/2026"
+            placeholder={t("verify.input.placeholder")}
             className="field-input-mono flex-1"
             value={titleNo}
             onChange={(e) =>
               setTitleNo(e.target.value.toUpperCase().trim())
             }
-            aria-label="Title number"
+            aria-label={t("verify.input.label")}
           />
           <Button
             type="submit"
@@ -110,7 +109,7 @@ export default function VerifyPage() {
             loading={verify.isPending}
             icon={<ArrowRight className="size-4" />}
           >
-            Verify
+            {t("verify.button.verify")}
           </Button>
           <Button
             type="button"
@@ -118,7 +117,7 @@ export default function VerifyPage() {
             icon={<ScanLine className="size-4" />}
             onClick={() => setShowScanner((v) => !v)}
           >
-            {showScanner ? "Close scanner" : "Scan QR"}
+            {showScanner ? t("verify.button.scan_close") : t("verify.button.scan")}
           </Button>
         </form>
         {showScanner && (
@@ -134,9 +133,9 @@ export default function VerifyPage() {
           </div>
         )}
         <p className="text-xs text-slate-500">
-          No smartphone? Dial{" "}
-          <span className="font-mono text-slate-800">*247*256#</span> from any
-          phone to verify by USSD.
+          {t("verify.ussd_hint.before")}
+          <span className="font-mono text-slate-800">*247*256#</span>
+          {t("verify.ussd_hint.after")}
         </p>
       </section>
 
@@ -150,11 +149,11 @@ export default function VerifyPage() {
           />
           <div>
             <p className="font-serif text-lg font-semibold text-slate-900">
-              Verification failed
+              {t("verify.error.title")}
             </p>
             <p className="mt-1 text-sm text-slate-700">
               {(verify.error as { detail?: string }).detail ??
-                "We could not reach the verifier. Try again in a moment."}
+                t("verify.error.body_default")}
             </p>
           </div>
         </div>
@@ -170,6 +169,7 @@ function ResultPanel({
   response: VerifyResponse;
   proof: { leaf: string; siblings: string[]; root: string } | null;
 }) {
+  const { t } = useLocale();
   if (response.valid) {
     return (
       <div className="space-y-5">
@@ -181,22 +181,20 @@ function ResultPanel({
           <div className="flex-1 space-y-2">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <p className="font-serif text-xl font-semibold text-slate-900">
-                Title verified
+                {t("verify.result.verified.title")}
               </p>
               <StatusPill kind="verified">
                 {response.anchor_status === "CONFIRMED"
-                  ? "Confirmed on chain"
-                  : "Anchored"}
+                  ? t("verify.result.verified.confirmed")
+                  : t("verify.result.verified.anchored")}
               </StatusPill>
             </div>
             <p className="text-sm text-slate-700">
-              This title is recorded in a district ledger and anchored to a
-              public blockchain. Any modification to the certificate would
-              break the Merkle proof shown below.
+              {t("verify.result.verified.body")}
             </p>
             <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
               <Receipt
-                label="Title"
+                label={t("verify.receipt.title")}
                 value={
                   <span className="font-mono text-slate-900">
                     {response.title_no}
@@ -204,7 +202,7 @@ function ResultPanel({
                 }
               />
               <Receipt
-                label="Batch"
+                label={t("verify.receipt.batch")}
                 value={
                   <HashDisplay
                     value={response.batch_id}
@@ -215,7 +213,7 @@ function ResultPanel({
                 }
               />
               <Receipt
-                label="Chain"
+                label={t("verify.receipt.chain")}
                 value={
                   <span className="font-mono text-slate-900 tabular-nums">
                     {response.chain_id ?? "—"}
@@ -223,7 +221,7 @@ function ResultPanel({
                 }
               />
               <Receipt
-                label="Block"
+                label={t("verify.receipt.block")}
                 value={
                   <span className="font-mono text-slate-900 tabular-nums">
                     {response.block_number ?? "—"}
@@ -255,32 +253,29 @@ function ResultPanel({
         isPending ? "state-pending" : "state-frozen"
       }`}
     >
-      {isPending ? (
-        <ShieldAlert
-          className="size-7 shrink-0 text-status-pending"
-          aria-hidden
-        />
-      ) : (
-        <ShieldAlert
-          className="size-7 shrink-0 text-status-frozen"
-          aria-hidden
-        />
-      )}
+      <ShieldAlert
+        className={`size-7 shrink-0 ${isPending ? "text-status-pending" : "text-status-frozen"}`}
+        aria-hidden
+      />
       <div className="flex-1 space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <p className="font-serif text-xl font-semibold text-slate-900">
-            {isPending ? "Anchor pending" : "Could not verify"}
+            {isPending
+              ? t("verify.result.pending.title")
+              : t("verify.result.failed.title")}
           </p>
           <StatusPill kind={isPending ? "pending" : "frozen"}>
-            {isPending ? "Awaiting anchor" : "Verification failed"}
+            {isPending
+              ? t("verify.result.pending.label")
+              : t("verify.result.failed.label")}
           </StatusPill>
         </div>
         <p className="text-sm leading-relaxed text-slate-700">
           {response.reason === "title_pending_anchor"
-            ? "This title exists in the off-chain ledger but its anchor batch is still pending. Re-check in a few minutes — your title remains legally valid in the meantime."
+            ? t("verify.result.pending.body")
             : response.reason === "title_not_found"
-              ? "We could not find this title in any district ledger. Check the title number for transcription errors, or contact your District Land Office."
-              : (response.reason ?? "Verification failed.")}
+              ? t("verify.result.notfound.body")
+              : (response.reason ?? t("verify.error.title"))}
         </p>
       </div>
     </div>

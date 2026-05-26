@@ -288,6 +288,239 @@ def seed_demo_state() -> dict[str, Any]:
     }
 
 
+# ─── seed_demo_extras — richer narrative data ──────────────────────────────
+
+
+def _sha256_short(s: str) -> str:
+    return sha256_hex(s)[:64]
+
+
+def seed_demo_extras() -> dict[str, int]:
+    """Issue a handful of titles, a completed transfer, and pending fraud
+    reviews so the public anchor timeline and the officer review queue
+    have visible state on a fresh deploy.
+
+    Idempotent: every insert is guarded by an existence check (titles by
+    title_no, transfers by signed_payload digest, reviews by subject_id).
+    """
+    now = time.time()
+    issued_titles = 0
+    issued_transfers = 0
+    queued_reviews = 0
+
+    with get_connection() as conn:
+        # Resolve seed owners by hash (already inserted by seed_demo_state)
+        def _owner_id(nin: str) -> str | None:
+            row = conn.execute(
+                "SELECT id FROM owners WHERE nin_hash = ?", (sha256_hex(nin),)
+            ).fetchone()
+            return str(row[0]) if row else None
+
+        nakato_id = _owner_id(NAKATO_NIN)
+        okello_id = _owner_id(OKELLO_NIN)
+        namatovu_id = _owner_id(NAMATOVU_NIN)
+        auma_id = _owner_id(AUMA_NIN)
+        bwambale_id = _owner_id(BWAMBALE_NIN)
+
+        # Pick a few existing Mityana background parcels (district 3) and
+        # tie them to demo owners so the title-issue flow has variety.
+        background = conn.execute(
+            "SELECT parcel_id FROM parcels WHERE district_id = 3 "
+            "AND parcel_id != ? ORDER BY parcel_id LIMIT 6",
+            (HERO_PARCEL,),
+        ).fetchall()
+        background_ids = [r[0] for r in background]
+
+        # Title for the hero parcel + a few others.
+        title_plan: list[tuple[str, str | None, str]] = [
+            (HERO_PARCEL, nakato_id, "demo-registrar"),
+        ]
+        if len(background_ids) >= 3 and okello_id and namatovu_id and auma_id:
+            title_plan += [
+                (background_ids[0], okello_id, "demo-registrar"),
+                (background_ids[1], namatovu_id, "demo-registrar"),
+                (background_ids[2], auma_id, "demo-registrar"),
+            ]
+
+        for idx, (parcel_id, owner_id, registrar_id) in enumerate(title_plan):
+            if owner_id is None:
+                continue
+            title_no = f"MITYANA/V1/{20260000 + idx + 1}"
+            exists = conn.execute(
+                "SELECT 1 FROM titles WHERE title_no = ?", (title_no,)
+            ).fetchone()
+            if exists:
+                continue
+            # Stamp owner on the parcel and write the title.
+            conn.execute(
+                "UPDATE parcels SET current_owner_id = ?, status = 'ACTIVE', updated_at = ? "
+                "WHERE parcel_id = ?",
+                (owner_id, now, parcel_id),
+            )
+            content_hash = sha256_hex(
+                json.dumps(
+                    {
+                        "title_no": title_no,
+                        "parcel_id": parcel_id,
+                        "owner_id": owner_id,
+                        "issued_at": now,
+                    },
+                    sort_keys=True,
+                )
+            )
+            conn.execute(
+                "INSERT INTO titles (title_no, parcel_id, issued_at, registrar_id, "
+                " district_id, content_hash) VALUES (?,?,?,?,?,?)",
+                (title_no, parcel_id, now, registrar_id, 3, content_hash),
+            )
+            issued_titles += 1
+
+        # One completed sale: Okello → Namatovu of background_ids[0].
+        if (
+            okello_id
+            and namatovu_id
+            and background_ids
+            and conn.execute(
+                "SELECT 1 FROM transfers WHERE parcel_id = ? AND status = 'COMPLETED'",
+                (background_ids[0],),
+            ).fetchone()
+            is None
+        ):
+            transfer_id = str(uuid.uuid4())
+            signed = json.dumps(
+                {
+                    "parcel_id": background_ids[0],
+                    "from": okello_id,
+                    "to": namatovu_id,
+                    "consideration_ugx": 14_500_000,
+                    "transfer_type": "SALE",
+                },
+                sort_keys=True,
+            )
+            conn.execute(
+                "INSERT INTO transfers (id, parcel_id, from_owner_id, to_owner_id, "
+                " transfer_type, consideration, status, signed_payload, initiated_at, "
+                " completed_at, district_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    transfer_id,
+                    background_ids[0],
+                    okello_id,
+                    namatovu_id,
+                    "SALE",
+                    14_500_000.0,
+                    "COMPLETED",
+                    signed,
+                    now - 86400,
+                    now,
+                    3,
+                ),
+            )
+            conn.execute(
+                "UPDATE parcels SET current_owner_id = ?, updated_at = ? WHERE parcel_id = ?",
+                (namatovu_id, now, background_ids[0]),
+            )
+            issued_transfers += 1
+
+        # Pending fraud reviews — three plausible signals an Officer
+        # would adjudicate. Subject IDs are stable so re-runs are no-ops.
+        review_plan = [
+            {
+                "id": "review-watchlist-bwambale",
+                "subject_type": "owner",
+                "subject_id": bwambale_id or "bwambale-pending",
+                "risk_score": 92,
+                "recommended_action": "BLOCK",
+                "signals": [
+                    {"rule": "watchlist_match", "score": 70, "evidence": "Patrick Bwambale"},
+                    {"rule": "nin_forgery_suspect", "score": 22, "evidence": "NIRA returned no match"},
+                ],
+            },
+            {
+                "id": "review-rapid-resale",
+                "subject_type": "transfer",
+                "subject_id": "transfer-rapid-resale-demo",
+                "risk_score": 71,
+                "recommended_action": "FLAG",
+                "signals": [
+                    {"rule": "rapid_resale_window", "score": 45, "evidence": "Resale 9 days after acquisition"},
+                    {"rule": "price_below_zone_floor", "score": 26, "evidence": "0.42x median Mityana TC price"},
+                ],
+            },
+            {
+                "id": "review-duplicate-nin",
+                "subject_type": "owner",
+                "subject_id": "owner-duplicate-nin-demo",
+                "risk_score": 64,
+                "recommended_action": "FLAG",
+                "signals": [
+                    {"rule": "duplicate_nin_application", "score": 40, "evidence": "Two parcels filed under same NIN within 24h"},
+                    {"rule": "geo_distance_outlier", "score": 24, "evidence": "Mityana + Gulu in same 24h"},
+                ],
+            },
+        ]
+        for r in review_plan:
+            exists = conn.execute(
+                "SELECT 1 FROM fraud_review_queue WHERE id = ?", (r["id"],)
+            ).fetchone()
+            if exists:
+                continue
+            conn.execute(
+                "INSERT INTO fraud_review_queue (id, subject_type, subject_id, district_id, "
+                " risk_score, recommended_action, signals, scorer_version, state, created_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (
+                    r["id"],
+                    r["subject_type"],
+                    r["subject_id"],
+                    3,
+                    r["risk_score"],
+                    r["recommended_action"],
+                    json.dumps(r["signals"]),
+                    "isolation-forest-v1+rules-v1",
+                    "PENDING_REVIEW",
+                    now,
+                ),
+            )
+            queued_reviews += 1
+
+        conn.commit()
+
+    # Audit events for everything we created — these will be picked up
+    # by the anchor loop and produce multiple anchor batches so the
+    # public timeline isn't a single row.
+    for parcel_id, owner_id, registrar_id in title_plan:
+        if owner_id is None:
+            continue
+        audit_emit(
+            event_type="TITLE_ISSUED",
+            payload={
+                "parcel_id": parcel_id,
+                "owner_id": owner_id,
+                "registrar_id": registrar_id,
+            },
+            district_id=3,
+            actor_user_id="seed:demo",
+        )
+    if issued_transfers and okello_id and namatovu_id and background_ids:
+        audit_emit(
+            event_type="TRANSFER_COMPLETED",
+            payload={
+                "parcel_id": background_ids[0],
+                "from_owner_id": okello_id,
+                "to_owner_id": namatovu_id,
+                "transfer_type": "SALE",
+            },
+            district_id=3,
+            actor_user_id="seed:demo",
+        )
+
+    return {
+        "titles": issued_titles,
+        "transfers": issued_transfers,
+        "fraud_reviews": queued_reviews,
+    }
+
+
 # ─── DB-empty check + lifespan entry point ─────────────────────────────────
 
 
@@ -318,10 +551,14 @@ def maybe_seed_on_startup(settings: Settings) -> bool:
     logger.info("seed_on_startup_begin app_env=%s", settings.app_env)
     d = seed_districts_and_parcels()
     s = seed_demo_state()
+    x = seed_demo_extras()
     logger.info(
-        "seed_on_startup_done districts=%d parcels=%d hero=%s",
+        "seed_on_startup_done districts=%d parcels=%d hero=%s titles=%d transfers=%d reviews=%d",
         d["districts"],
         d["parcels_inserted"],
         s["hero_parcel"],
+        x["titles"],
+        x["transfers"],
+        x["fraud_reviews"],
     )
     return True
