@@ -15,6 +15,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.blockchain.anchor_service import anchor_loop_forever
+from app.bootstrap.seed import maybe_seed_on_startup
 from app.config import get_settings
 from app.database import apply_migrations, close_connections
 from app.fraud.worker import consumer_loop_forever, stop_consumer
@@ -56,6 +57,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     settings.assert_prod_safety()
     apply_migrations()
+
+    # In non-production (staging / demo / dev) start with showcase data
+    # already in place so the public Anchors page and the role-gated
+    # dashboards aren't empty. No-op in production and idempotent on
+    # warm restarts.
+    try:
+        maybe_seed_on_startup(settings)
+    except Exception:
+        logger.exception("seed_on_startup_failed")
 
     if settings.otel_enabled:
         try:
