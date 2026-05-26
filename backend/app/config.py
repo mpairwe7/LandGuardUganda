@@ -91,7 +91,16 @@ class Settings(BaseSettings):
     prometheus_metrics_enabled: bool = True
 
     # --- CORS ---
-    cors_allow_origins: str = "http://localhost:3000,http://frontend:3000"
+    # The deployed Crane Cloud frontend talks directly to the backend
+    # (browser → public ingress) because Crane Cloud RENU pods have no
+    # outbound internet egress, so the frontend pod's /api/proxy route
+    # cannot reach this backend's public URL itself. The browser-direct
+    # path requires this origin in the allowlist.
+    cors_allow_origins: str = (
+        "http://localhost:3000,"
+        "http://frontend:3000,"
+        "https://landguard-frontend-3d8aba74.renu-01.cranecloud.io"
+    )
 
     @field_validator("jwt_hs256_secret")
     @classmethod

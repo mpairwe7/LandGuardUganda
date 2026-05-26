@@ -9,6 +9,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* env vars are baked into the client bundle at build
+# time. The browser uses this URL to talk to the backend directly
+# (Crane Cloud pods have no outbound egress, so the in-pod proxy
+# fallback can't reach the backend). Override with --build-arg when
+# the backend URL changes.
+ARG NEXT_PUBLIC_BACKEND_URL=https://landguard-backend-d1e66f33.renu-01.cranecloud.io
+ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
 RUN bun run build
 
 FROM oven/bun:1.1 AS runner

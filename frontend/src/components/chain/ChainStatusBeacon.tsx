@@ -4,6 +4,14 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useChainStatusStore } from "@/store/useChainStatusStore";
 
+// When NEXT_PUBLIC_BACKEND_URL is baked in at build time, the browser
+// fetches /readyz directly against the backend's public ingress (with
+// CORS). Otherwise we use the server-side helper at /api/chain-status,
+// which only works in environments where the frontend pod has outbound
+// internet (local dev, Docker compose).
+const PUBLIC_BACKEND = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "").replace(/\/$/, "");
+const READYZ_URL = PUBLIC_BACKEND ? `${PUBLIC_BACKEND}/readyz` : "/api/chain-status";
+
 interface Readyz {
   ok: boolean;
   degraded?: boolean;
@@ -21,10 +29,7 @@ export function ChainStatusBeacon() {
     queryKey: ["chainStatus"],
     queryFn: async () => {
       try {
-        // The dedicated frontend route fetches the backend /readyz so
-        // we don't depend on the /api/proxy/* rewrite (which only
-        // covers /api/v1/*).
-        const r = await fetch("/api/chain-status", { cache: "no-store" });
+        const r = await fetch(READYZ_URL, { cache: "no-store" });
         if (r.ok) return (await r.json()) as Readyz;
       } catch {
         /* fall through */

@@ -1,8 +1,21 @@
-// Same-origin proxy: /api/proxy/* → backend /api/*  (configured in next.config.mjs)
+// Backend base URL strategy:
+//
+// In production (Crane Cloud), the frontend pod has no outbound egress
+// — it cannot reach the backend's public URL from within the pod, so
+// the `/api/proxy/*` route handler can't function. Instead the browser
+// talks to the backend directly over CORS. `NEXT_PUBLIC_BACKEND_URL`
+// is baked into the client bundle at build time (frontend/Dockerfile)
+// and points at the backend's public ingress.
+//
+// In local dev (`bun dev` / `bun start`) without that env var set, we
+// fall back to `/api/proxy` and let the runtime route handler at
+// `src/app/api/proxy/[...path]/route.ts` reach a backend running on
+// localhost or a sibling container.
 
 import { useAuthStore } from "@/store/useAuthStore";
 
-const BASE = "/api/proxy";
+const PUBLIC_BACKEND = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "").replace(/\/$/, "");
+const BASE = PUBLIC_BACKEND ? `${PUBLIC_BACKEND}/api` : "/api/proxy";
 
 export type ApiError = { status: number; detail: string; requestId?: string };
 
