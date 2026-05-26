@@ -3,10 +3,7 @@ import {
   MapPin,
   ScrollText,
   UserCheck,
-  AlertTriangle,
   FileCheck2,
-  Activity,
-  Gavel,
   ShieldCheck,
 } from "lucide-react";
 import { ChainStatusBeacon } from "@/components/chain/ChainStatusBeacon";
@@ -52,12 +49,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </NavGroup>
             <NavGroup label="Land Officer">
               <NavLink href="/officer" icon={UserCheck}>KYC queue</NavLink>
-              <NavLink href="/officer/alerts" icon={AlertTriangle}>Fraud alerts</NavLink>
-              <NavLink href="/officer/reviews" icon={Gavel}>Pending reviews</NavLink>
+              {/* /officer/alerts and /officer/reviews are surfaced
+                  inline on /officer until their standalone routes
+                  are built. */}
             </NavGroup>
             <NavGroup label="Registrar">
               <NavLink href="/registrar" icon={FileCheck2}>Issue title</NavLink>
-              <NavLink href="/registrar/anchor" icon={Activity}>Anchor console</NavLink>
+              {/* /registrar/anchor is folded into /registrar for the
+                  showcase build. */}
             </NavGroup>
             <NavGroup label="Auditor">
               <NavLink href="/auditor" icon={ShieldCheck}>Chain integrity</NavLink>
