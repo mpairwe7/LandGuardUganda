@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.auth import AuthContext, Role, require_role, require_user
+from app.auth import Role, require_role
 from app.blockchain.anchor_service import build_proof_for_event, flush_district
 from app.database import get_connection
 from app.models.anchors import AnchorListResponse, AnchorRecord
@@ -32,11 +30,13 @@ def _row_to_anchor(row) -> AnchorRecord:
 
 @router.get("", response_model=AnchorListResponse)
 async def list_anchors(
-    ctx: Annotated[AuthContext, Depends(require_user)],
     district_id: int | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> AnchorListResponse:
+    # Public read: anchor batches are the publicly-verifiable summary of
+    # the audit chain. Listing them — root hash, block number, leaf count
+    # — discloses no PII, and the on-chain root is already public.
     where = ""
     params: list[object] = []
     if district_id is not None:
@@ -59,8 +59,8 @@ async def list_anchors(
 @router.get("/{batch_id}", response_model=AnchorRecord)
 async def get_anchor(
     batch_id: str,
-    ctx: Annotated[AuthContext, Depends(require_user)],
 ) -> AnchorRecord:
+    # Public read — same rationale as list_anchors.
     with get_connection() as conn:
         row = conn.execute(
             "SELECT batch_id, district_id, root_hash, first_seq, last_seq, leaf_count, "
@@ -76,8 +76,11 @@ async def get_anchor(
 @router.get("/title/{title_no}/proof")
 async def proof_for_title(
     title_no: str,
-    ctx: Annotated[AuthContext, Depends(require_user)],
 ) -> dict[str, object]:
+    # Public read: the Merkle proof contains only public material — the
+    # leaf hash, the sibling-hash path, the anchor root, and the block
+    # number. Verifying it requires the title number, which the caller
+    # already has, so leaking it does no incremental damage.
     with get_connection() as conn:
         row = conn.execute(
             "SELECT district_id FROM titles WHERE title_no = ?",

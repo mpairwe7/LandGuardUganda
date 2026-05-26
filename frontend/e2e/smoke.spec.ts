@@ -24,21 +24,31 @@ interface RouteSpec {
   // Console messages matching one of these patterns are tolerated. Keep
   // narrow — every entry is a documented exception, not a "shut it up".
   allowConsole?: RegExp[];
+  // For role-gated pages an anonymous viewer will trigger 401s on
+  // dashboard queries. That's expected; the page should still render.
+  // When `requiresAuth` is true the test allows 401 responses against
+  // the backend API and matching console errors.
+  requiresAuth?: boolean;
 }
 
+// Allow OSM tile errors (third-party rate-limit) — they're not our
+// system's fault and they don't affect functional UX.
+const TILE_ERROR = /tile\.openstreetmap\.org/;
+const AUTH_401 = /401 \(Unauthorized\)/;
+
 const ROUTES: RouteSpec[] = [
-  // public surfaces
+  // public surfaces — must be fully clean for anonymous viewers
   { path: "/" },
   { path: "/verify" },
   { path: "/explore" },
   { path: "/anchors" },
-  // role-gated dashboards — render even without auth (data may be empty)
-  { path: "/citizen" },
-  { path: "/officer" },
-  { path: "/registrar" },
-  { path: "/auditor" },
-  { path: "/surveyor/register" },
-  { path: "/demo" },
+  // role-gated dashboards — 401s for unauthed visitors are normal
+  { path: "/citizen", requiresAuth: true },
+  { path: "/officer", requiresAuth: true },
+  { path: "/registrar", requiresAuth: true },
+  { path: "/auditor", requiresAuth: true },
+  { path: "/surveyor/register", requiresAuth: true, allowConsole: [TILE_ERROR] },
+  { path: "/demo", requiresAuth: true },
 ];
 
 interface RouteReport {
@@ -58,6 +68,9 @@ async function visitRoute(page: Page, spec: RouteSpec): Promise<RouteReport> {
     if (msg.type() === "error") {
       const text = msg.text();
       if (spec.allowConsole?.some((re) => re.test(text))) return;
+      // 401s on role-gated pages are expected for anonymous viewers —
+      // they're not a regression to gate on.
+      if (spec.requiresAuth && AUTH_401.test(text)) return;
       consoleErrors.push(text);
     }
   };
@@ -67,9 +80,14 @@ async function visitRoute(page: Page, spec: RouteSpec): Promise<RouteReport> {
   const onResponse = (resp: Response) => {
     const url = resp.url();
     const status = resp.status();
-    // Treat any >=500 OR /api/proxy/* non-2xx as a real failure.
-    const isApi = url.includes("/api/proxy/");
-    if (status >= 500 || (isApi && (status < 200 || status >= 300))) {
+    const isApi =
+      url.includes("/api/proxy/") ||
+      url.includes("landguard-backend") ||
+      url.includes("/api/v1/") ||
+      url.includes("/api/chain-status");
+    // 401 on role-gated pages is expected for an anonymous viewer.
+    const allowed401 = spec.requiresAuth && status === 401;
+    if (status >= 500 || (isApi && (status < 200 || status >= 300) && !allowed401)) {
       failedRequests.push({ url, status, method: resp.request().method() });
     }
   };
@@ -78,12 +96,14 @@ async function visitRoute(page: Page, spec: RouteSpec): Promise<RouteReport> {
   page.on("pageerror", onPageError);
   page.on("response", onResponse);
 
-  const resp = await page.goto(spec.path, { waitUntil: "networkidle", timeout: 30_000 });
+  // `load` rather than `networkidle` — pages with MapLibre keep
+  // requesting OSM tiles continuously, so networkidle never settles.
+  const resp = await page.goto(spec.path, { waitUntil: "load", timeout: 25_000 });
   const status = resp?.status() ?? 0;
 
   // Give client-side queries (chainStatus refetchInterval=5s, etc.) a
   // beat to fire before tearing down.
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2500);
 
   page.off("console", onConsole);
   page.off("pageerror", onPageError);
