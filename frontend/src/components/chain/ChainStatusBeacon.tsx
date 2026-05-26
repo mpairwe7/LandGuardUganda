@@ -20,15 +20,19 @@ export function ChainStatusBeacon() {
   const { data } = useQuery({
     queryKey: ["chainStatus"],
     queryFn: async () => {
-      const resp = await fetch("/api/proxy/../readyz");
-      // Same-origin proxy doesn't expose /readyz directly; fall back:
       try {
-        const r = await fetch("/api/health");
+        // The dedicated frontend route fetches the backend /readyz so
+        // we don't depend on the /api/proxy/* rewrite (which only
+        // covers /api/v1/*).
+        const r = await fetch("/api/chain-status", { cache: "no-store" });
         if (r.ok) return (await r.json()) as Readyz;
-      } catch {}
+      } catch {
+        /* fall through */
+      }
       return { ok: false, details: {} } as Readyz;
     },
     refetchInterval: 5_000,
+    retry: false,
   });
 
   useEffect(() => {

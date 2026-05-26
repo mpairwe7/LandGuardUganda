@@ -1,20 +1,15 @@
 /** @type {import('next').NextConfig} */
-const backendUrl = process.env.BACKEND_URL || "http://backend:8000";
-
+// /api/proxy/* is served by a runtime route handler at
+// src/app/api/proxy/[...path]/route.ts so BACKEND_URL is honoured at
+// request time, not at `next build` time. The previous rewrites()-based
+// approach baked the (CI-time-empty) BACKEND_URL into the standalone
+// bundle.
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: "standalone",
   experimental: {
     typedRoutes: true,
-  },
-  async rewrites() {
-    return [
-      {
-        source: "/api/proxy/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
   },
   async headers() {
     return [
