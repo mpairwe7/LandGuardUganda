@@ -4,15 +4,19 @@
 // queued / down" pill in the global header.
 
 import { NextResponse } from "next/server";
-
-const DEFAULT_BACKEND =
-  "https://landguard-backend-d1e66f33.renu-01.cranecloud.io";
+import { resolveBackendUrl } from "@/lib/backendUrl";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const backend = process.env.BACKEND_URL || DEFAULT_BACKEND;
+  const backend = await resolveBackendUrl();
+  if (!backend) {
+    return NextResponse.json(
+      { ok: false, details: {}, error: "no_reachable_backend" },
+      { status: 200 },
+    );
+  }
   try {
     const upstream = await fetch(`${backend.replace(/\/$/, "")}/readyz`, {
       cache: "no-store",
