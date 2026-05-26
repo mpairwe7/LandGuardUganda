@@ -111,7 +111,20 @@ async function visitRoute(page: Page, spec: RouteSpec): Promise<RouteReport> {
 
   // `load` rather than `networkidle` — pages with MapLibre keep
   // requesting OSM tiles continuously, so networkidle never settles.
-  const resp = await page.goto(spec.path, { waitUntil: "load", timeout: 25_000 });
+  // headless-shell on this sandbox occasionally drops the long-haul
+  // request to RENU with ERR_NETWORK_CHANGED / ERR_FAILED; retry once
+  // before treating it as a real failure.
+  let resp: Awaited<ReturnType<typeof page.goto>> | null = null;
+  try {
+    resp = await page.goto(spec.path, { waitUntil: "load", timeout: 25_000 });
+  } catch (err) {
+    if (TRANSIENT_NET.test(String(err))) {
+      await page.waitForTimeout(1500);
+      resp = await page.goto(spec.path, { waitUntil: "load", timeout: 25_000 });
+    } else {
+      throw err;
+    }
+  }
   const status = resp?.status() ?? 0;
 
   // Give client-side queries (chainStatus refetchInterval=5s, etc.) a

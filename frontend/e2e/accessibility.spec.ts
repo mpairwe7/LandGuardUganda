@@ -62,7 +62,18 @@ for (const target of PAGES) {
   test(`a11y: ${target.description} (${target.path})`, async ({
     page,
   }, testInfo) => {
-    await page.goto(target.path, { waitUntil: "networkidle" });
+    // Default 30 s isn't enough for: long-haul fetch to Crane Cloud
+    // (1.2 s/hop) + axe analysis (5-10 s) + a 1.5 s mount wait. Bump
+    // to 60 s so the test fails on real violations rather than network
+    // jitter.
+    test.setTimeout(60_000);
+    // 'networkidle' never settles — the ChainStatusBeacon polls
+    // /readyz every 5 s, and the role-gated dashboards retry their
+    // API calls. 'load' fires when the document and critical
+    // assets are ready; the 1.5 s wait that follows is enough for
+    // client-side hooks to mount before axe inspects the DOM.
+    await page.goto(target.path, { waitUntil: "load" });
+    await page.waitForTimeout(1500);
 
     const results = await new AxeBuilder({ page })
       .withTags(WCAG_TAGS)
