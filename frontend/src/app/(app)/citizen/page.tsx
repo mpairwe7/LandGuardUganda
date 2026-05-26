@@ -54,7 +54,7 @@ export default function CitizenPage() {
         {data?.map((p) => (
           <li key={p.parcel_id}>
             <Link
-              href={`/titles/${encodeURIComponent(p.parcel_id)}` as never}
+              href={`/titles/${encodeURIComponent(p.parcel_id)}`}
               className="card-surface grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 transition-colors hover:border-guard-300 hover:bg-guard-50/30"
             >
               <span className="rounded-md bg-guard-50 p-2 text-guard-700">

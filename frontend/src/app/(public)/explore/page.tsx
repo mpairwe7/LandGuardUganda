@@ -44,7 +44,7 @@ export default function ExplorePage() {
           return (
             <li key={d.code}>
               <Link
-                href={`/explore/district/${d.code}` as never}
+                href={`/explore/district/${d.code}`}
                 className={`card-surface flex items-start gap-4 transition-colors hover:border-guard-300 hover:bg-guard-50/40 ${
                   isPilot ? "state-verified" : ""
                 }`}
