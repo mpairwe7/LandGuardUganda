@@ -6,14 +6,13 @@ prove that no rows have been tampered with since they were written.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 from typing import Any
 
 from .ledger import GENESIS_HASH, get_ledger
 from .merkle import sha256_hex
-
-import json
 
 logger = logging.getLogger(__name__)
 

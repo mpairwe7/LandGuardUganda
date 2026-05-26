@@ -9,6 +9,7 @@ real chain integration from a console.
 from __future__ import annotations
 
 import logging
+
 from fastapi import APIRouter, HTTPException
 
 from app.blockchain.anchor_service import flush_district, get_anchor_breaker

@@ -15,8 +15,9 @@ import logging
 import random
 import threading
 import time
+from collections.abc import Awaitable, Callable
 from enum import Enum
-from typing import Any, Awaitable, Callable, TypeVar
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 

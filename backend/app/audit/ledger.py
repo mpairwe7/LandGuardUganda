@@ -102,8 +102,8 @@ class AuditLedger:
 
         with get_connection() as conn:
             cur = conn.cursor()
-            for stmt in _SCHEMA_SQL.strip().split(";"):
-                stmt = stmt.strip()
+            for raw_stmt in _SCHEMA_SQL.strip().split(";"):
+                stmt = raw_stmt.strip()
                 if not stmt:
                     continue
                 try:

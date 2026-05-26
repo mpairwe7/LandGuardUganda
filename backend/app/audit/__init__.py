@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .ledger import AuditEvent, AuditLedger, GENESIS_HASH, get_ledger, reset_ledger
+from .ledger import GENESIS_HASH, AuditEvent, AuditLedger, get_ledger, reset_ledger
 from .merkle import (
     compute_merkle_root,
     compute_merkle_root_evm,

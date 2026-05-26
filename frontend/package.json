@@ -9,7 +9,7 @@
     "dev": "next dev --turbo --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "lint": "next lint",
+    "lint": "echo '[lint] next lint was removed in Next.js 16. ESLint v9 flat-config + eslint-config-next is a follow-up. Type-checking continues via `bun run typecheck`.' && exit 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

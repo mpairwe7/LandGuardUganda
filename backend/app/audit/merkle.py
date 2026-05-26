@@ -25,10 +25,10 @@ top of ``anchor_service.py`` and explicitly tested in ``test_merkle_cross.py``.
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from eth_utils import keccak as _keccak
-
 
 # ---------------------------------------------------------------------------
 # Regime 1 — Off-chain integrity tree (SHA-256, index-ordered)

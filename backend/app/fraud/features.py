@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.database import get_connection
@@ -73,7 +73,7 @@ def assemble_features(context: dict[str, Any]) -> list[float]:
             if o_row and o_row[0]:
                 owner_age_days = max(0.0, (time.time() - float(o_row[0])) / 86400.0)
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     return [
         hours_since_last,
         math.log1p(consideration),

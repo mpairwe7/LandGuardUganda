@@ -12,6 +12,7 @@ Env vars are set at MODULE import time so they precede any
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
 
@@ -73,10 +74,10 @@ def _clean_tables():
 
     with get_connection() as conn:
         for table in _WIPE_TABLES:
-            try:
-                conn.execute(f"DELETE FROM {table}")
-            except Exception:
-                pass
+            # Per-test DELETE — best-effort; a missing table just means
+            # an unmigrated codepath, not a fixture failure.
+            with contextlib.suppress(Exception):
+                conn.execute(f"DELETE FROM {table}")  # noqa: S608
         conn.commit()
     from app.audit import reset_ledger
     from app.blockchain.client import reset_blockchain_client

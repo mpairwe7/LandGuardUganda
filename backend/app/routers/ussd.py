@@ -32,7 +32,6 @@ from app.util.ussd import (
     con,
     end,
     format_verify_result,
-    session_load,
     session_save,
 )
 

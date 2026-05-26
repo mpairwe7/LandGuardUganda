@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .anchors import AnchorRecord, AnchorListResponse
+from .anchors import AnchorListResponse, AnchorRecord
 from .common import PaginatedResponse, Pagination
 from .disputes import DisputeFileRequest, DisputeRecord, DisputeResolveRequest
 from .fraud import FraudScoreResponse, FraudSignalResponse

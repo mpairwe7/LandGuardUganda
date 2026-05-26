@@ -21,6 +21,7 @@ appeal at ``POST /api/v1/fraud/appeals``.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import time
@@ -29,7 +30,7 @@ from typing import Any
 
 from app.audit import audit_emit
 from app.database import get_connection
-from app.fraud.scorer import latest_score, persist_score, score_subject, SCORER_VERSION
+from app.fraud.scorer import SCORER_VERSION, latest_score, persist_score, score_subject
 from app.util.cache import cache_setnx, get_redis, stream_publish
 
 logger = logging.getLogger(__name__)
@@ -214,10 +215,9 @@ async def consumer_loop_forever() -> None:
             if redis is None:
                 await asyncio.sleep(2)
                 continue
-            try:
+            # Group already exists on warm restart → just continue.
+            with contextlib.suppress(Exception):
                 await redis.xgroup_create(STREAM_NAME, CONSUMER_GROUP, id="0", mkstream=True)
-            except Exception:
-                pass
             entries = await redis.xreadgroup(
                 CONSUMER_GROUP, CONSUMER_NAME, {STREAM_NAME: ">"}, count=10, block=1000
             )
@@ -226,7 +226,7 @@ async def consumer_loop_forever() -> None:
             for _stream, items in entries:
                 for entry_id, fields in items:
                     try:
-                        message = {k: v for k, v in fields.items()}
+                        message = dict(fields)
                         await _score_once(message)
                     except Exception:
                         logger.exception(
@@ -234,10 +234,10 @@ async def consumer_loop_forever() -> None:
                             extra={"entry_id": entry_id},
                         )
                     finally:
-                        try:
+                        # Ack errors are non-fatal — the consumer-group
+                        # XPENDING cleanup will retry stuck entries.
+                        with contextlib.suppress(Exception):
                             await redis.xack(STREAM_NAME, CONSUMER_GROUP, entry_id)
-                        except Exception:
-                            pass
         except asyncio.CancelledError:
             break
         except Exception:

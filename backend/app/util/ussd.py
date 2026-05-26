@@ -9,14 +9,12 @@ the Africa's Talking USSD protocol — ``CON ...`` to keep the session open,
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
-import time
 from dataclasses import dataclass
 from typing import Any
 
-from app.util.cache import cache_get, cache_set, get_redis
+from app.util.cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +33,7 @@ class UssdRequest:
     text: str  # accumulated input across the session, '*' delimited
 
     @classmethod
-    def from_form(cls, form: dict[str, str]) -> "UssdRequest":
+    def from_form(cls, form: dict[str, str]) -> UssdRequest:
         return cls(
             session_id=form.get("sessionId", ""),
             service_code=form.get("serviceCode", ""),

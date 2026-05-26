@@ -16,7 +16,7 @@ from app.models.parcels import (
     ParcelCreateRequest,
     ParcelRecord,
 )
-from app.util.geo import parse_geojson, overlap_fraction, validate_geometry
+from app.util.geo import overlap_fraction, parse_geojson, validate_geometry
 
 router = APIRouter(prefix="/api/v1/parcels", tags=["parcels"])
 
@@ -168,9 +168,8 @@ async def geo_search(
         if payload.mode == "within":
             if other.within(candidate):
                 result.append(_row_to_parcel(row))
-        else:
-            if overlap_fraction(candidate, other) > 0.0:
-                result.append(_row_to_parcel(row))
+        elif overlap_fraction(candidate, other) > 0.0:
+            result.append(_row_to_parcel(row))
         if len(result) >= payload.limit:
             break
     return result

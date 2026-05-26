@@ -27,8 +27,7 @@ from typing import Any
 
 from eth_account import Account
 from hexbytes import HexBytes
-from web3 import AsyncWeb3
-from web3 import AsyncHTTPProvider
+from web3 import AsyncHTTPProvider, AsyncWeb3
 
 from app.audit.merkle import sha256_hex
 from app.blockchain.anvil_client import _to_bytes32
@@ -48,7 +47,7 @@ def _load_abi() -> list[dict[str, Any]]:
 def _read_address_for_multisig(file_path: str) -> str | None:
     if not os.path.exists(file_path):
         return None
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         data = json.load(f)
     addr = data.get("multisig_address")
     return str(addr or "").lower() or None
@@ -125,7 +124,7 @@ class MultiSigBlockchainClient:
                 self._w3.eth.wait_for_transaction_receipt(tx_hash, poll_latency=0.5),
                 timeout=60.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return AnchorReceipt(
                 batch_id=batch_id,
                 district_id=district_id,
@@ -155,7 +154,6 @@ class MultiSigBlockchainClient:
         )
 
     async def _wait_for_execution(self, batch_id: HexBytes, max_wait: float) -> bool:
-        contract = self._contract()
         # We don't have a direct "isExecuted" view; we re-derive proposalId
         # by re-hashing on the client side. For the demo we instead poll the
         # underlying anchor: if the batchId is present there, the multisig
@@ -164,9 +162,9 @@ class MultiSigBlockchainClient:
         inner_addr = getattr(self._inner, "address", None)
         if not inner_addr:
             return False
-        from pathlib import Path as _P
+        from pathlib import Path
 
-        abi_path = _P(__file__).resolve().parent / "abi.json"
+        abi_path = Path(__file__).resolve().parent / "abi.json"
         with abi_path.open() as f:
             anchor_abi = json.load(f)
         anchor = self._w3.eth.contract(

@@ -14,8 +14,8 @@ from __future__ import annotations
 import logging
 import math
 import random
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import joblib
 import numpy as np
@@ -62,7 +62,9 @@ def _synthetic_samples(n: int = 2000, *, anomaly_rate: float = 0.05) -> Iterable
 
 
 def train_and_save() -> Path:
-    X = np.array(list(_synthetic_samples()))
+    # `X` follows the sklearn convention (uppercase for feature
+    # matrices, lowercase y for labels). N806 is a false positive here.
+    X = np.array(list(_synthetic_samples()))  # noqa: N806
     model = IsolationForest(
         n_estimators=200,
         contamination=0.05,

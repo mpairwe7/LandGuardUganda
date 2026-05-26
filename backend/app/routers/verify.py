@@ -17,7 +17,6 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
-from app.audit.merkle import sha256_hex
 from app.blockchain import get_blockchain_client
 from app.blockchain.anchor_service import build_proof_for_event
 from app.database import get_connection

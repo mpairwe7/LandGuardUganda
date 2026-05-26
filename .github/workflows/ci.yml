@@ -38,8 +38,13 @@ jobs:
         run: uv run ruff check app tests
 
       - name: Type check (mypy)
-        run: uv run mypy app
-        continue-on-error: true   # strict baseline in progress; surface without blocking
+        # `--explicit-package-bases` makes mypy find sub-packages
+        # without each parent dir owning an __init__.py — required
+        # since `app.util.metrics` is referenced from inside the
+        # package itself. Strict baseline still in progress; keep
+        # continue-on-error until the type debt is paid down.
+        run: uv run mypy --explicit-package-bases app
+        continue-on-error: true
 
       - name: Tests (pytest)
         run: uv run pytest -q --tb=short
@@ -91,8 +96,11 @@ jobs:
         run: bun run typecheck
 
       - name: Lint
+        # `bun run lint` is a stub until ESLint v9 + eslint-config-next
+        # is wired up (see frontend/package.json). Typechecking above
+        # already covers correctness; this step is here so the slot is
+        # named and findable once ESLint is real.
         run: bun run lint
-        continue-on-error: true
 
       - name: Build
         run: bun run build

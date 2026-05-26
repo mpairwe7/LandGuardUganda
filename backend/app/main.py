@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import structlog
 from fastapi import FastAPI, Request
@@ -91,10 +92,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         anchor_task.cancel()
         fraud_task.cancel()
         for t in (anchor_task, fraud_task):
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await t
-            except (asyncio.CancelledError, Exception):
-                pass
         close_connections()
 
 

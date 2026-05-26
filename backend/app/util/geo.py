@@ -12,9 +12,9 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from pyproj import Transformer
 from shapely.geometry import Polygon, shape
 from shapely.ops import transform
-from pyproj import Transformer
 
 # UTM Zone 36N (EPSG:32636) — Uganda lies entirely between 29°E and 35°E,
 # which falls inside the zone's 30°E–36°E band. Linear units are metres, so

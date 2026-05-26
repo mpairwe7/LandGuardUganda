@@ -27,5 +27,5 @@ class PaginatedResponse(StrictModel, Generic[T]):
     offset: int
 
     @classmethod
-    def of(cls, items: list[T], *, total: int, limit: int, offset: int) -> "PaginatedResponse[T]":
+    def of(cls, items: list[T], *, total: int, limit: int, offset: int) -> PaginatedResponse[T]:
         return cls(items=items, total=total, limit=limit, offset=offset)

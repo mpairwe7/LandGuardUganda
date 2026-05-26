@@ -12,7 +12,13 @@ of identities to drive the showcase demo's fraud scenario.
 
 from __future__ import annotations
 
-from .client import NIRABiometricMatch, NIRAClient, NIRADemographics, NIRAVerifyResult, get_nira_client
+from .client import (
+    NIRABiometricMatch,
+    NIRAClient,
+    NIRADemographics,
+    NIRAVerifyResult,
+    get_nira_client,
+)
 
 __all__ = [
     "NIRABiometricMatch",

@@ -12,11 +12,11 @@ not None — fraud scoring must never crash the calling workflow.
 
 from __future__ import annotations
 
-import json
 import logging
 import statistics
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from rapidfuzz.fuzz import token_set_ratio
 

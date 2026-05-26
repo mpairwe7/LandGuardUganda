@@ -6,12 +6,9 @@ import json
 import time
 import uuid
 
-import pytest
-
 from app.database import get_connection
 from app.fraud.rules import (
     rule_geometry_overlap,
-    rule_nin_reuse,
     rule_nira_kyc,
     rule_size_anomaly,
     rule_watchlist_name,

@@ -16,8 +16,9 @@ import logging
 import os
 import sqlite3
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 from app.config import get_settings
 
@@ -96,7 +97,7 @@ def apply_migrations() -> None:
         cur = conn.cursor()
         for fn in files:
             path = os.path.join(migrations_dir, fn)
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 script = fh.read()
             logger.info("applying_migration", extra={"file": fn})
             for stmt in _split_statements(script):

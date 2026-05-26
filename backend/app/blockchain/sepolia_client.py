@@ -21,9 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from eth_account import Account
-from hexbytes import HexBytes
-from web3 import AsyncWeb3
-from web3 import AsyncHTTPProvider
+from web3 import AsyncHTTPProvider, AsyncWeb3
 
 from app.audit.merkle import sha256_hex
 from app.blockchain.anvil_client import _to_bytes32
@@ -54,7 +52,7 @@ class SepoliaBlockchainClient:
         path = self._settings.contract_address_file
         if not os.path.exists(path):
             return None
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         addr = data.get("sepolia") or data.get("address")
         return str(addr or "").lower() or None
@@ -110,7 +108,7 @@ class SepoliaBlockchainClient:
                 self._w3.eth.wait_for_transaction_receipt(tx_hash, poll_latency=2.0),
                 timeout=180.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return AnchorReceipt(
                 batch_id=batch_id,
                 district_id=district_id,

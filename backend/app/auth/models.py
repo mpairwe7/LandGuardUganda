@@ -17,7 +17,7 @@ class Role(str, Enum):
     ADMIN = "ADMIN"
 
     @classmethod
-    def parse(cls, raw: str | None) -> "Role | None":
+    def parse(cls, raw: str | None) -> Role | None:
         if not raw:
             return None
         try:

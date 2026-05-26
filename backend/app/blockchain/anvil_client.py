@@ -20,8 +20,7 @@ from typing import Any
 
 from eth_account import Account
 from hexbytes import HexBytes
-from web3 import AsyncWeb3
-from web3 import AsyncHTTPProvider
+from web3 import AsyncHTTPProvider, AsyncWeb3
 
 from app.audit.merkle import sha256_hex
 from app.blockchain.models import AnchorReceipt
@@ -41,7 +40,7 @@ def _read_contract_address(file_path: str) -> str | None:
     if not os.path.exists(file_path):
         return None
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
         return str(data.get("address") or "").lower() or None
     except Exception:
@@ -126,7 +125,7 @@ class AnvilBlockchainClient:
                 self._w3.eth.wait_for_transaction_receipt(tx_hash, poll_latency=0.5),
                 timeout=60.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "anchor_tx_pending",
                 extra={"batch_id": batch_id, "tx": tx_hash.hex()},

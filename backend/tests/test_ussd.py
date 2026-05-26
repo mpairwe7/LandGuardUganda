@@ -39,7 +39,6 @@ def client_with_anchored_title():
             ("UG-MIT-T00007/2026", "UG-MIT-024718/2026", now, "r", 3, "h" * 64),
         )
         conn.commit()
-    return None
 
 
 @pytest.mark.asyncio

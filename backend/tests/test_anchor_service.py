@@ -6,9 +6,9 @@ import time
 
 import pytest
 
-from app.audit import get_ledger, reset_ledger
+from app.audit import get_ledger
 from app.blockchain.anchor_service import build_proof_for_event, flush_district
-from app.blockchain.client import get_blockchain_client, reset_blockchain_client
+from app.blockchain.client import get_blockchain_client
 from app.database import get_connection
 
 

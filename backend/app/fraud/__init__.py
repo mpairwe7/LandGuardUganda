@@ -7,7 +7,7 @@ scores are deterministic for replayability.
 
 from __future__ import annotations
 
-from .rules import RuleSignal, RULES
+from .rules import RULES, RuleSignal
 from .scorer import SCORER_VERSION, FraudScore, score_subject
 
 __all__ = ["FraudScore", "RULES", "RuleSignal", "SCORER_VERSION", "score_subject"]

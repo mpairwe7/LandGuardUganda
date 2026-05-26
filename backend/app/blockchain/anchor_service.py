@@ -106,18 +106,20 @@ async def flush_district(district_id: int, *, force: bool = False) -> dict[str, 
     anchor_queue_depth.labels(district_id=tenant).set(len(events))
     if not events:
         return {"district_id": district_id, "status": "EMPTY", "leaf_count": 0}
-    if not force:
-        # Time-based threshold per district.
-        if (
-            len(events) < settings.anchor_flush_batch_size
-            and time.time() - _last_anchor_ts(district_id)
-            < settings.anchor_flush_interval_seconds
-        ):
-            return {
-                "district_id": district_id,
-                "status": "DEFERRED",
-                "leaf_count": len(events),
-            }
+    # Time-based threshold per district. Skip flush if neither the
+    # batch-size nor the elapsed-time bound is met, unless the caller
+    # explicitly forces it (demo control panel, manual operator flush).
+    if (
+        not force
+        and len(events) < settings.anchor_flush_batch_size
+        and time.time() - _last_anchor_ts(district_id)
+        < settings.anchor_flush_interval_seconds
+    ):
+        return {
+            "district_id": district_id,
+            "status": "DEFERRED",
+            "leaf_count": len(events),
+        }
 
     first_seq = events[0]["seq"]
     last_seq = events[-1]["seq"]
