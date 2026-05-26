@@ -96,6 +96,18 @@ ignore = [
                  # "do not fail on idempotency"; logging would be noise.
     "S112",      # Same rationale for try/except/continue in parcels.py
                  # geometry-overlap loop.
+    "PLC0415",   # In-function imports — widely used in this codebase
+                 # for lazy loading (e.g. tracing, optional otel) and
+                 # circular-import avoidance (e.g. audit ledger
+                 # importing get_connection inside its methods).
+    "UP042",     # `class Role(str, Enum)` — could be `StrEnum` (3.11+),
+                 # but the multi-inheritance form is intentional for
+                 # JSON serialisation explicitness.
+    "UP046",     # Generic-class type-parameter syntax (3.12+) —
+                 # codebase still uses the `Generic[T]` form for
+                 # readability and to match Pydantic 2's docs.
+    "UP047",     # Generic-function type-parameter syntax (3.12+) —
+                 # same rationale.
 ]
 # Webhook contracts (e.g. Africa's Talking POST bodies) require exact
 # argument-name casing — `sessionId`, `phoneNumber`, etc. Lift N803 there.
