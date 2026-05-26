@@ -17,7 +17,8 @@ submission/
 ├── README.md                                       ← this file
 ├── LandGuard-Uganda-System-Description.md          ← markdown source (~22 KB)
 ├── LandGuard-Uganda-System-Description.html        ← HTML companion (~26 KB)
-├── LandGuard-Uganda-System-Description.pdf         ← rendered PDF (~653 KB, ~8 pages A4, diagrams inline)
+├── LandGuard-Uganda-System-Description.pdf         ← rendered PDF (~653 KB, ~8 A4 pages, diagrams inline)
+├── LandGuard-Uganda-System-Description.docx        ← Word render (~538 KB, for review / track-changes)
 ├── diagrams/                                       ← Mermaid sources (.mmd)
 │   ├── 01-c4-context.mmd
 │   ├── 02-c4-container.mmd
@@ -30,13 +31,49 @@ submission/
     └── 04-security-boundaries.png
 ```
 
-The diagrams are **embedded inline** in the system-description PDF and
-HTML so the document is self-contained. The standalone PNGs in
-`figures/` remain available for evaluators who want to enlarge a
-specific diagram or include one in a slide deck.
+The diagrams are **embedded inline** in the system-description PDF,
+HTML, and DOCX so each document is self-contained. The standalone
+PNGs in `figures/` remain available for evaluators who want to
+enlarge a specific diagram or include one in a slide deck.
 
-Last rendered: 2026-05-26 via `mmdc` (PNGs) + `weasyprint` (PDF), per
-the recipe in §3.
+Last rendered: 2026-05-26 via `mmdc` (PNGs) + `weasyprint` (PDF) +
+`pandoc` (DOCX), per the recipe in §3.
+
+## How the diagrams are rendered (pipeline)
+
+```
+diagrams/*.mmd                          Mermaid text source
+       │
+       │  mmdc CLI (Node.js + Puppeteer)
+       │  ├─ launches headless Chromium
+       │  │  with --no-sandbox flags (Crane Cloud-grade
+       │  │  sandboxes block the default Puppeteer profile)
+       │  ├─ loads the Mermaid renderer in-page
+       │  └─ renders each diagram to an SVG, then screenshots
+       │     it to a 1920×1080 PNG on a white background
+       ▼
+figures/*.png                           rasterised diagram
+       │
+       │  Inline `<img src="figures/NN-name.png">` in the
+       │  markdown source. Each render path picks them up
+       │  via a base-path setting:
+       │
+       │   weasyprint   →  base_url="submission/"
+       │   pandoc       →  --resource-path=submission
+       │   browser/HTML →  same-folder relative resolution
+       ▼
+{PDF, HTML, DOCX}                       diagrams visible in
+                                        each rendered format
+```
+
+The Mermaid `.mmd` files are committed alongside the rendered PNGs so
+that:
+1. **Audit reproducibility** — a panellist can re-render any diagram
+   from source with one `mmdc` command and confirm the PNG hasn't
+   been hand-edited (the byte-equal output proves the pipeline is
+   deterministic).
+2. **Editorial review** — diagram changes diff cleanly in git as text
+   edits to the `.mmd` files; the PNG/PDF/DOCX re-renders follow.
 
 ## Build
 
@@ -154,14 +191,48 @@ PY
 
 **Last rendered result:** 8 pages, ~653 KB.
 
-If you prefer pandoc + LaTeX (heavier toolchain, more typographic
-control), the equivalent recipe is in the HealthSyncUganda submission's
-git history.
+### 4. Convert the system description to DOCX — `pandoc` (for review / track-changes)
+
+The DOCX render exists so reviewers can leave Word comments and
+suggested edits before the next PDF pass; the markdown source remains
+canonical. The pipeline is `pandoc` only — no LaTeX, no LibreOffice.
+
+```bash
+# One-off install. Static binary works without root.
+mkdir -p /tmp/pandoc-bin && cd /tmp/pandoc-bin
+curl -sfL https://github.com/jgm/pandoc/releases/download/3.6/pandoc-3.6-linux-amd64.tar.gz \
+  -o pandoc.tar.gz
+tar -xzf pandoc.tar.gz
+PANDOC=/tmp/pandoc-bin/pandoc-3.6/bin/pandoc
+# (On apt/dpkg systems: sudo apt-get install pandoc — version >= 2.19)
+
+cd <repo-root>
+$PANDOC submission/LandGuard-Uganda-System-Description.md \
+  --resource-path=submission \
+  --from=markdown+pipe_tables+fenced_code_blocks+yaml_metadata_block+link_attributes+implicit_figures \
+  --to=docx \
+  --output=submission/LandGuard-Uganda-System-Description.docx
+```
+
+`--resource-path=submission` resolves the `figures/*.png` references to
+the same files the PDF embeds. The four diagrams land in
+`word/media/rId*.png` inside the DOCX zip, byte-equal to the PNG
+sources. Reviewers see them inline in Word / LibreOffice Writer with
+no further steps.
+
+**Last rendered result:** ~538 KB, all four diagrams embedded
+(verifiable via `unzip -l submission/LandGuard-Uganda-System-Description.docx | grep media`).
+
+If you prefer pandoc + LaTeX for the PDF (heavier toolchain, more
+typographic control), the equivalent recipe is in the
+HealthSyncUganda submission's git history.
 
 ## Pre-submission checklist
 
 - [x] PDF includes all four diagrams inline (`01-c4-context`,
       `02-c4-container`, `03-resilience-flow`, `04-security-boundaries`)
+- [x] DOCX render generated for review / track-changes (same four
+      diagrams embedded in `word/media/`)
 - [x] Mermaid `.mmd` sources committed alongside rendered PNGs so a
       reviewer can verify the diagram against the source
 - [x] Repository URL on the cover page resolves publicly
