@@ -207,6 +207,60 @@ Alternative: Actions tab → **Deploy to Crane Cloud** → **Run workflow** → 
 
 **Cause:** Image bloat. **Fix:** LandGuard's backend image is ~250 MB (FastAPI + uv + scikit-learn), frontend is ~150 MB (Next.js standalone) — both pull in well under a minute on RENU. If a future change pushes either past 1 GB, investigate.
 
+### `PATCH /apps/{id}` returns 404 `"Image … does not exist or is private"`
+
+**Cause:** The image tag Crane Cloud is being asked to pull doesn't exist on Docker Hub. The `deploy-cranecloud.yml` workflow always PATCHes with `0.1.0-showcase-<sha7>` (the docker/metadata-action semver form, leading `v` stripped). That tag is **only** produced when a `v*` git tag is pushed — main-branch pushes only emit `:main`, `:main-<sha>`, and `:sha-<sha>`. **Fix:**
+
+```bash
+git tag -d v0.1.0-showcase 2>/dev/null
+git tag v0.1.0-showcase
+git push origin v0.1.0-showcase --force   # triggers tag-push Build & push
+```
+
+The tag-push run produces the `:0.1.0-showcase-<sha7>` form *and* auto-dispatches the Crane Cloud deploy (see `build-push.yml` `dispatch-deploy` job). A bare `git push origin main` does **not** produce a deployable image.
+
+### Manual deploy during a GitHub Actions outage
+
+Use this when `codeload.github.com` can't deliver action archives (`Failed to download archive 'https://codeload.github.com/docker/setup-buildx-action/...'`) and the Build & push job fails before reaching the Docker build step. Confirmed working on 2026-05-26 during a 40-minute `major_outage`. Requires local Docker + `docker login` for `landwind` already cached in `~/.docker/config.json`.
+
+```bash
+SHA7=$(git rev-parse --short HEAD)
+
+# 1. Backend
+docker build --platform linux/amd64 \
+  -t landwind/landguard-uganda-backend:0.1.0-showcase-$SHA7 \
+  -f backend/Dockerfile backend/
+docker push landwind/landguard-uganda-backend:0.1.0-showcase-$SHA7
+
+# 2. Frontend — NEXT_PUBLIC_BACKEND_URL must match the live backend
+#    ingress so the baked client bundle calls the right origin over CORS.
+docker build --platform linux/amd64 \
+  --build-arg NEXT_PUBLIC_BACKEND_URL=https://landguard-backend-d1e66f33.renu-01.cranecloud.io \
+  -t landwind/landguard-uganda-frontend:0.1.0-showcase-$SHA7 \
+  -f frontend/Dockerfile frontend/
+docker push landwind/landguard-uganda-frontend:0.1.0-showcase-$SHA7
+
+# 3. Dispatch the deploy workflow on `main` so GITHUB_SHA = HEAD.
+#    Uses the CRANE_CLOUD_PASSWORD GitHub secret — no plaintext needed
+#    on the local machine.
+gh workflow run deploy-cranecloud.yml \
+  --repo mpairwe7/LandGuardUganda \
+  --ref main \
+  --field target=both \
+  --field image_tag=v0.1.0-showcase
+```
+
+The Deploy workflow then PATCHes both apps via the Crane Cloud HTTP API exactly as it would have for an automated tag push. Total wall-clock: ~6–10 minutes for both builds + push + ~10 s deploy.
+
+### Frontend pod cannot reach the backend's public URL
+
+**Cause:** Crane Cloud RENU pods have **no outbound internet egress**. Verified via the `/api/proxy-debug` endpoint: Google, 1.1.1.1, `api.cranecloud.io`, and Crane Cloud's own ingress all time out from inside the pod. **Fix:** Don't try to proxy backend traffic through the frontend pod. Instead, the browser calls the backend's public URL directly over CORS:
+
+  - `frontend/Dockerfile` bakes `NEXT_PUBLIC_BACKEND_URL` into the client bundle at build time.
+  - `frontend/src/lib/api.ts` uses `${NEXT_PUBLIC_BACKEND_URL}/api` when set; falls back to `/api/proxy` (a runtime route handler) for local dev.
+  - `backend/app/config.py` adds the deployed frontend origin to `cors_allow_origins`.
+  - Browser → Crane Cloud frontend ingress (HTML/JS only) → Crane Cloud backend ingress (CORS, all data).
+
 ---
 
 ## 10. Trust assumptions

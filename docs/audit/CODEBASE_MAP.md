@@ -42,6 +42,8 @@ single module end-to-end in one sitting.
 | `resilience.py` | 194 | `CircuitBreaker` (CLOSED→OPEN→HALF_OPEN), exponential backoff, `force_open/force_close` for the demo control panel; `retry_with_backoff` for finer-grained transient handling |
 | `crypto.py` | 42 | AES-GCM 256 helper using `cryptography.hazmat`; key cached via `lru_cache`; nonce-prefixed ciphertext layout |
 | `tracing.py` | — | OTel OTLP-gRPC setup (lazy-imported in lifespan when `OTEL_ENABLED=true`) |
+| `bootstrap/__init__.py` | 1 | Marker for the startup-helpers package |
+| `bootstrap/seed.py` | ~330 | `seed_districts_and_parcels()`, `seed_demo_state()`, `seed_demo_extras()` (titles + transfer + fraud reviews), `is_db_empty()`, `maybe_seed_on_startup()` — gated by `app_env != "production"` AND empty districts table; idempotent on warm restarts |
 
 ### 2.2 Auth — `app/auth/`
 
@@ -213,7 +215,10 @@ single EOA can call `commitBatch` directly.
 | `/auditor` | `app/(app)/auditor/page.tsx` | Audit chain verify + appeals resolver |
 | `/titles/[upi]` | `app/titles/[upi]/page.tsx` | Printable title certificate with on-page QR |
 | `/demo` | `app/demo/page.tsx` | Demo control panel (gated by `?demo=1`) |
-| `/api/proxy/[...path]` | `app/api/proxy/` | Same-origin backend proxy via `next.config.mjs` rewrite |
+| `/explore/district/[code]` | `app/(public)/explore/district/[code]/page.tsx` | SSG drill-down (mityana / wakiso / kampala-central / gulu); unknown codes 404 via `dynamicParams: false` |
+| `/api/proxy/[...path]` | `app/api/proxy/[...path]/route.ts` | Runtime backend proxy (route handler, not rewrite — Crane Cloud pod can't honour build-time targets). Falls through to candidate list in `lib/backendUrl.ts` |
+| `/api/proxy-debug` | `app/api/proxy-debug/route.ts` | Diagnostic: probes every backend candidate + external egress so the pod's networking can be characterised from outside |
+| `/api/chain-status` | `app/api/chain-status/route.ts` | Server-side proxy for backend `/readyz` (used by `ChainStatusBeacon` when `NEXT_PUBLIC_BACKEND_URL` isn't baked in) |
 | `/api/health` | `app/api/health/route.ts` | Frontend liveness |
 
 ### 4.2 Components — `components/`
@@ -225,7 +230,7 @@ single EOA can call `commitBatch` directly.
 | `common/` | `Button.tsx`, `HashDisplay.tsx`, `StatusPill.tsx` |
 | `demo/` | `DemoControlPanel.tsx` (214 lines — RPC kill, NIRA kill, force flush) |
 | `fraud/` | `FraudExplainer.tsx`, `ReviewQueue.tsx` (207 lines — affirm/dismiss with mandatory notes) |
-| `layout/` | `MinistryHeader.tsx`, `CoatOfArmsMark.tsx`, `DistrictPicker.tsx`, `RoleSwitcher.tsx`, `RedactToggle.tsx`/`RedactShell.tsx` |
+| `layout/` | `MinistryHeader.tsx`, `CoatOfArmsMark.tsx`, `DistrictPicker.tsx`, `RoleSwitcher.tsx`, `RedactToggle.tsx`/`RedactShell.tsx`, `LocaleSwitcher.tsx`, `MobileMenu.tsx` (reusable headless drawer — focus-trap close, Esc, body scroll lock, auto-close on link click; used by all three top-level layouts for the hamburger pattern) |
 | `map/` | `MapParcelDrawer.tsx` |
 | `verify/` | `QrScanner.tsx` |
 
@@ -233,13 +238,17 @@ single EOA can call `commitBatch` directly.
 
 | File | Role |
 |---|---|
-| `lib/api.ts` | Same-origin fetch via `/api/proxy/*` → backend; auto-attaches Bearer + `X-Demo-Role` + `Idempotency-Key` |
+| `lib/api.ts` | `${NEXT_PUBLIC_BACKEND_URL}/api` when baked at build time (Crane Cloud production path — browser → backend ingress directly over CORS), else `/api/proxy` (local-dev runtime route). Auto-attaches Bearer + `X-Demo-Role` + `Idempotency-Key` |
+| `lib/backendUrl.ts` | Candidate-list probe for the runtime proxy route — tries `BACKEND_URL`, k8s short names, and the public ingress in turn. Caches the first that returns 200 on `/healthz` |
 | `lib/merkle.ts` | TypeScript mirror of `backend/app/audit/merkle.py` — both regimes; cross-checked via shared vectors |
 | `lib/format.ts`, `lib/cn.ts` | Date/number formatting; `clsx`+`tailwind-merge` |
+| `lib/i18n/messages.ts` | en + lg (Luganda) catalogue for the `/verify` page. Luganda strings flagged as best-effort working drafts pending native-speaker review |
+| `lib/i18n/useLocale.ts` | Hook over `useLocaleStore`; cookie-hydrates on mount, exposes `{locale, setLocale, t}` |
 | `store/useAuthStore.ts` | Zustand — JWT, demoRole, demoDistrictId |
 | `store/useDistrictStore.ts` | Active district selector |
 | `store/useChainStatusStore.ts` | Live anchor breaker state |
 | `store/useDemoStore.ts` | Demo-control state |
+| `store/useLocaleStore.ts` | Shared `en`/`lg` locale, persisted to `lg_locale` cookie (SameSite=Lax, 1 year) |
 | `store/useRedactStore.ts` | NIN/phone redact toggle for the auditor console |
 
 ### 4.4 Build & runtime
@@ -319,9 +328,16 @@ Closed since the prior revision:
 - ✅ ~~`scripts/` (project root) is empty~~ — now carries
   `generate_sbom.sh`, `lighthouse_ci.sh`, `load_test.sh`, and
   `_sbom_frontend_fallback.py`.
-- ✅ ~~`frontend/e2e/` is empty~~ — `accessibility.spec.ts` authored,
-  uses `@axe-core/playwright`, wired into the CI workflow under the
-  new `accessibility` job.
+- ✅ ~~`frontend/e2e/` is empty~~ — four specs now cover the deploy:
+  `accessibility.spec.ts` (axe-core / WCAG 2.2 AA on six citizen-
+  critical routes — 6/6 clean as of 2026-05-26 commit `f98203f`),
+  `smoke.spec.ts` (10 routes, page-status + console/page-error +
+  failed-request capture), `flows.spec.ts` (8 click-through user
+  journeys including sidebar-link enumeration), `mobile.spec.ts`
+  (Pixel 5 viewport — horizontal-overflow regression + both
+  hamburger drawers + axe-core on `/verify`). The CI accessibility
+  job runs `accessibility.spec.ts` only; smoke / flows / mobile are
+  meant for the live-deploy URL.
 - ✅ ~~`docs/sbom.json` referenced but does not exist~~ — CycloneDX 1.5
   bundle in `evidence/sbom/` (backend + frontend + contracts), each
   content-addressed with SHA-256.
