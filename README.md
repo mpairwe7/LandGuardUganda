@@ -94,6 +94,7 @@ For an auditor, evaluator, or maintainer, in depth:
 12. **[`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)** — Contributor Covenant 2.1.
 13. **[`CHANGELOG.md`](./CHANGELOG.md)** — dated CVE/dep/architecture timeline.
 14. **[`docs/AI_ETHICS_CHARTER.md`](./docs/AI_ETHICS_CHARTER.md)** — human-in-the-loop policy.
+14b. **[`docs/model-cards/fraud-scorer.md`](./docs/model-cards/fraud-scorer.md)** — Mitchell-et-al. model card for the fraud scorer (NIST AI RMF / ISO 42001 evidence).
 15. **[`docs/CUSTODY.md`](./docs/CUSTODY.md)** — 3-of-5 multi-sig signer plan.
 16. **[`docs/GOVERNANCE.md`](./docs/GOVERNANCE.md)** — DPPA-2019 compliance posture.
 17. **[`docs/USSD_DEPLOYMENT.md`](./docs/USSD_DEPLOYMENT.md)** — USSD pathway deployment guide.

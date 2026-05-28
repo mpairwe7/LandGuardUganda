@@ -1,0 +1,84 @@
+{
+  "scorer_version": "isoforest-rules-v1-20260620",
+  "generated_at": 1779950986.2662823,
+  "global_flag_rate_mean": 0.1813,
+  "districts": [
+    {
+      "key": 1,
+      "total": 15,
+      "flagged": 0,
+      "flag_rate": 0.0,
+      "ratio_to_mean": 0.0,
+      "exceeds_threshold": false
+    },
+    {
+      "key": 2,
+      "total": 6,
+      "flagged": 1,
+      "flag_rate": 0.1667,
+      "ratio_to_mean": 0.919,
+      "exceeds_threshold": false
+    },
+    {
+      "key": 3,
+      "total": 28,
+      "flagged": 8,
+      "flag_rate": 0.2857,
+      "ratio_to_mean": 1.576,
+      "exceeds_threshold": true
+    },
+    {
+      "key": 4,
+      "total": 11,
+      "flagged": 3,
+      "flag_rate": 0.2727,
+      "ratio_to_mean": 1.504,
+      "exceeds_threshold": true
+    }
+  ],
+  "tenures": [
+    {
+      "key": "CUSTOMARY",
+      "total": 13,
+      "flagged": 2,
+      "flag_rate": 0.1538,
+      "ratio_to_mean": 0.849,
+      "exceeds_threshold": false
+    },
+    {
+      "key": "FREEHOLD",
+      "total": 13,
+      "flagged": 3,
+      "flag_rate": 0.2308,
+      "ratio_to_mean": 1.273,
+      "exceeds_threshold": false
+    },
+    {
+      "key": "LEASEHOLD",
+      "total": 11,
+      "flagged": 1,
+      "flag_rate": 0.0909,
+      "ratio_to_mean": 0.501,
+      "exceeds_threshold": false
+    },
+    {
+      "key": "MAILO",
+      "total": 23,
+      "flagged": 6,
+      "flag_rate": 0.2609,
+      "ratio_to_mean": 1.439,
+      "exceeds_threshold": false
+    }
+  ],
+  "genders": [
+    {
+      "key": "unknown",
+      "total": 60,
+      "flagged": 12,
+      "flag_rate": 0.2,
+      "ratio_to_mean": 1.103,
+      "exceeds_threshold": false
+    }
+  ],
+  "appeals": {}
+}

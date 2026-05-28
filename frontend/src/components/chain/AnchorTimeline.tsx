@@ -57,9 +57,9 @@ export function AnchorTimeline({ districtId }: { districtId?: number }) {
     <section className="card-surface">
       <header className="mb-3 flex items-center gap-2 border-b border-slate-200 pb-3">
         <Anchor className="size-4 text-guard-700" aria-hidden />
-        <h3 className="text-caption uppercase tracking-[0.16em] text-slate-500">
+        <h2 className="text-caption uppercase tracking-[0.16em] text-slate-500">
           Anchor timeline
-        </h3>
+        </h2>
       </header>
       <ol className="divide-y divide-slate-100" role="list">
         {data.items.map((a) => (

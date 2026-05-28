@@ -541,6 +541,34 @@
       "version": "3.11.1"
     },
     {
+      "bom-ref": "ast_serialize==0.5.0",
+      "description": "Python bindings for mypy AST serialization",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Issues",
+          "type": "issue-tracker",
+          "url": "https://github.com/mypyc/ast_serialize/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Homepage",
+          "type": "website",
+          "url": "https://github.com/mypyc/ast_serialize"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "ast_serialize",
+      "purl": "pkg:pypi/ast-serialize@0.5.0",
+      "type": "library",
+      "version": "0.5.0"
+    },
+    {
       "bom-ref": "asyncpg==0.29.0",
       "description": "An asyncio PostgreSQL driver",
       "externalReferences": [
@@ -1652,6 +1680,34 @@
       "version": "0.1.0"
     },
     {
+      "bom-ref": "librt==0.11.0",
+      "description": "Mypyc runtime library",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Issues",
+          "type": "issue-tracker",
+          "url": "https://github.com/mypyc/mypyc/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Homepage",
+          "type": "website",
+          "url": "https://github.com/mypyc/librt"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "librt",
+      "purl": "pkg:pypi/librt@0.11.0",
+      "type": "library",
+      "version": "0.11.0"
+    },
+    {
       "bom-ref": "limits==5.8.0",
       "description": "Rate limiting utilities",
       "externalReferences": [
@@ -1733,6 +1789,72 @@
       "purl": "pkg:pypi/multidict@6.7.1",
       "type": "library",
       "version": "6.7.1"
+    },
+    {
+      "bom-ref": "mypy==2.1.0",
+      "description": "Optional static typing for Python",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Documentation",
+          "type": "documentation",
+          "url": "https://mypy.readthedocs.io/en/stable/index.html"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Issues",
+          "type": "issue-tracker",
+          "url": "https://github.com/python/mypy/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Changelog",
+          "type": "release-notes",
+          "url": "https://github.com/python/mypy/blob/master/CHANGELOG.md"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Repository",
+          "type": "vcs",
+          "url": "https://github.com/python/mypy"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Homepage",
+          "type": "website",
+          "url": "https://www.mypy-lang.org/"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "mypy",
+      "purl": "pkg:pypi/mypy@2.1.0",
+      "type": "library",
+      "version": "2.1.0"
+    },
+    {
+      "bom-ref": "mypy_extensions==1.1.0",
+      "description": "Type system extensions for programs checked with the mypy type checker.",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Homepage",
+          "type": "website",
+          "url": "https://github.com/python/mypy_extensions"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "mypy_extensions",
+      "purl": "pkg:pypi/mypy-extensions@1.1.0",
+      "type": "library",
+      "version": "1.1.0"
     },
     {
       "bom-ref": "numpy==2.4.6",
@@ -2165,6 +2287,44 @@
       "purl": "pkg:pypi/passlib@1.7.4",
       "type": "library",
       "version": "1.7.4"
+    },
+    {
+      "bom-ref": "pathspec==1.1.1",
+      "description": "Utility library for gitignore style pattern matching of file paths.",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Documentation",
+          "type": "documentation",
+          "url": "https://python-path-specification.readthedocs.io/en/latest/index.html"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Issue Tracker",
+          "type": "issue-tracker",
+          "url": "https://github.com/cpburnz/python-pathspec/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Source Code",
+          "type": "other",
+          "url": "https://github.com/cpburnz/python-pathspec"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Change Log",
+          "type": "release-notes",
+          "url": "https://python-path-specification.readthedocs.io/en/latest/changes.html"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "name": "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+          }
+        }
+      ],
+      "name": "pathspec",
+      "purl": "pkg:pypi/pathspec@1.1.1",
+      "type": "library",
+      "version": "1.1.1"
     },
     {
       "bom-ref": "pluggy==1.6.0",
@@ -3091,6 +3251,44 @@
       "version": "4.1.0"
     },
     {
+      "bom-ref": "ruff==0.15.13",
+      "description": "An extremely fast Python linter and code formatter, written in Rust.",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Documentation",
+          "type": "documentation",
+          "url": "https://docs.astral.sh/ruff/"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Changelog",
+          "type": "release-notes",
+          "url": "https://github.com/astral-sh/ruff/blob/main/CHANGELOG.md"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Repository",
+          "type": "vcs",
+          "url": "https://github.com/astral-sh/ruff"
+        },
+        {
+          "comment": "from packaging metadata: Home-page",
+          "type": "website",
+          "url": "https://docs.astral.sh/ruff"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "ruff",
+      "purl": "pkg:pypi/ruff@0.15.13",
+      "type": "library",
+      "version": "0.15.13"
+    },
+    {
       "bom-ref": "scikit-learn==1.8.0",
       "description": "A set of python modules for machine learning and data mining",
       "externalReferences": [
@@ -3450,6 +3648,141 @@
       "version": "1.1.0"
     },
     {
+      "bom-ref": "types-cffi==2.0.0.20260518",
+      "description": "Typing stubs for cffi",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Chat",
+          "type": "chat",
+          "url": "https://gitter.im/python/typing"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Issue tracker",
+          "type": "issue-tracker",
+          "url": "https://github.com/python/typeshed/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Changes",
+          "type": "release-notes",
+          "url": "https://github.com/typeshed-internal/stub_uploader/blob/main/data/changelogs/cffi.md"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: GitHub",
+          "type": "vcs",
+          "url": "https://github.com/python/typeshed"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Homepage",
+          "type": "website",
+          "url": "https://github.com/python/typeshed"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "types-cffi",
+      "purl": "pkg:pypi/types-cffi@2.0.0.20260518",
+      "type": "library",
+      "version": "2.0.0.20260518"
+    },
+    {
+      "bom-ref": "types-pyOpenSSL==24.1.0.20240722",
+      "description": "Typing stubs for pyOpenSSL",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Chat",
+          "type": "chat",
+          "url": "https://gitter.im/python/typing"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Issue tracker",
+          "type": "issue-tracker",
+          "url": "https://github.com/python/typeshed/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Changes",
+          "type": "release-notes",
+          "url": "https://github.com/typeshed-internal/stub_uploader/blob/main/data/changelogs/pyOpenSSL.md"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: GitHub",
+          "type": "vcs",
+          "url": "https://github.com/python/typeshed"
+        },
+        {
+          "comment": "from packaging metadata: Home-page",
+          "type": "website",
+          "url": "https://github.com/python/typeshed"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "name": "License :: OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "types-pyOpenSSL",
+      "purl": "pkg:pypi/types-pyopenssl@24.1.0.20240722",
+      "type": "library",
+      "version": "24.1.0.20240722"
+    },
+    {
+      "bom-ref": "types-redis==4.6.0.20241004",
+      "description": "Typing stubs for redis",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Chat",
+          "type": "chat",
+          "url": "https://gitter.im/python/typing"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Issue tracker",
+          "type": "issue-tracker",
+          "url": "https://github.com/python/typeshed/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Changes",
+          "type": "release-notes",
+          "url": "https://github.com/typeshed-internal/stub_uploader/blob/main/data/changelogs/redis.md"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: GitHub",
+          "type": "vcs",
+          "url": "https://github.com/python/typeshed"
+        },
+        {
+          "comment": "from packaging metadata: Home-page",
+          "type": "website",
+          "url": "https://github.com/python/typeshed"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "Apache-2.0"
+          }
+        },
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "name": "License :: OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "types-redis",
+      "purl": "pkg:pypi/types-redis@4.6.0.20241004",
+      "type": "library",
+      "version": "4.6.0.20241004"
+    },
+    {
       "bom-ref": "types-requests==2.33.0.20260518",
       "description": "Typing stubs for requests",
       "externalReferences": [
@@ -3491,6 +3824,49 @@
       "purl": "pkg:pypi/types-requests@2.33.0.20260518",
       "type": "library",
       "version": "2.33.0.20260518"
+    },
+    {
+      "bom-ref": "types-setuptools==82.0.0.20260518",
+      "description": "Typing stubs for setuptools",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Chat",
+          "type": "chat",
+          "url": "https://gitter.im/python/typing"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Issue tracker",
+          "type": "issue-tracker",
+          "url": "https://github.com/python/typeshed/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Changes",
+          "type": "release-notes",
+          "url": "https://github.com/typeshed-internal/stub_uploader/blob/main/data/changelogs/setuptools.md"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: GitHub",
+          "type": "vcs",
+          "url": "https://github.com/python/typeshed"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Homepage",
+          "type": "website",
+          "url": "https://github.com/python/typeshed"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "types-setuptools",
+      "purl": "pkg:pypi/types-setuptools@82.0.0.20260518",
+      "type": "library",
+      "version": "82.0.0.20260518"
     },
     {
       "bom-ref": "typing-inspection==0.4.2",
@@ -3960,7 +4336,8 @@
     },
     {
       "dependsOn": [
-        "coverage==7.14.0"
+        "coverage==7.14.0",
+        "mypy==2.1.0"
       ],
       "ref": "aiosqlite==0.22.1"
     },
@@ -3982,11 +4359,15 @@
     },
     {
       "dependsOn": [
+        "mypy==2.1.0",
         "pytest-asyncio==1.3.0",
         "pytest==9.0.3",
         "typing_extensions==4.15.0"
       ],
       "ref": "asgiref==3.11.1"
+    },
+    {
+      "ref": "ast_serialize==0.5.0"
     },
     {
       "dependsOn": [
@@ -3999,6 +4380,7 @@
     },
     {
       "dependsOn": [
+        "mypy==2.1.0",
         "pytest==9.0.3"
       ],
       "ref": "bcrypt==5.0.0"
@@ -4053,6 +4435,7 @@
         "eth-utils==6.0.0",
         "eth_abi==5.2.0",
         "hexbytes==1.3.1",
+        "mypy==2.1.0",
         "pydantic==2.13.4",
         "pytest==9.0.3",
         "rlp==4.1.0"
@@ -4061,6 +4444,7 @@
     },
     {
       "dependsOn": [
+        "mypy==2.1.0",
         "pycryptodome==3.23.0",
         "pytest==9.0.3"
       ],
@@ -4080,6 +4464,7 @@
         "eth-hash==0.8.0",
         "eth-typing==6.0.0",
         "eth-utils==6.0.0",
+        "mypy==2.1.0",
         "pytest==9.0.3"
       ],
       "ref": "eth-keys==0.7.0"
@@ -4089,6 +4474,7 @@
         "eth-hash==0.8.0",
         "eth-utils==6.0.0",
         "hexbytes==1.3.1",
+        "mypy==2.1.0",
         "pytest==9.0.3",
         "rlp==4.1.0",
         "typing_extensions==4.15.0"
@@ -4097,6 +4483,7 @@
     },
     {
       "dependsOn": [
+        "mypy==2.1.0",
         "pytest==9.0.3",
         "typing_extensions==4.15.0"
       ],
@@ -4107,6 +4494,7 @@
         "cytoolz==1.1.0",
         "eth-hash==0.8.0",
         "eth-typing==6.0.0",
+        "mypy==2.1.0",
         "pydantic==2.13.4",
         "pytest==9.0.3",
         "toolz==1.1.0"
@@ -4118,6 +4506,7 @@
         "eth-hash==0.8.0",
         "eth-typing==6.0.0",
         "eth-utils==6.0.0",
+        "mypy==2.1.0",
         "parsimonious==0.10.0",
         "pytest==9.0.3"
       ],
@@ -4172,6 +4561,7 @@
     {
       "dependsOn": [
         "eth-utils==6.0.0",
+        "mypy==2.1.0",
         "pytest==9.0.3"
       ],
       "ref": "hexbytes==1.3.1"
@@ -4200,7 +4590,9 @@
     },
     {
       "dependsOn": [
-        "pytest==9.0.3"
+        "mypy==2.1.0",
+        "pytest==9.0.3",
+        "ruff==0.15.13"
       ],
       "ref": "idna==3.15"
     },
@@ -4224,6 +4616,7 @@
         "geojson-pydantic==2.1.1",
         "httpx==0.28.1",
         "joblib==1.5.3",
+        "mypy==2.1.0",
         "numpy==2.4.6",
         "opentelemetry-api==1.42.0",
         "opentelemetry-exporter-otlp-proto-grpc==1.42.0",
@@ -4242,16 +4635,21 @@
         "pytest==9.0.3",
         "python-multipart==0.0.29",
         "redis==5.3.1",
+        "ruff==0.15.13",
         "scikit-learn==1.8.0",
         "shapely==2.1.2",
         "slowapi==0.1.9",
         "starlette==0.50.0",
         "structlog==25.5.0",
         "tenacity==9.1.4",
+        "types-redis==4.6.0.20241004",
         "uvicorn==0.30.6",
         "web3==7.16.0"
       ],
       "ref": "landguard-backend==0.1.0"
+    },
+    {
+      "ref": "librt==0.11.0"
     },
     {
       "dependsOn": [
@@ -4267,6 +4665,20 @@
         "typing_extensions==4.15.0"
       ],
       "ref": "multidict==6.7.1"
+    },
+    {
+      "dependsOn": [
+        "ast_serialize==0.5.0",
+        "librt==0.11.0",
+        "mypy_extensions==1.1.0",
+        "orjson==3.11.9",
+        "pathspec==1.1.1",
+        "typing_extensions==4.15.0"
+      ],
+      "ref": "mypy==2.1.0"
+    },
+    {
+      "ref": "mypy_extensions==1.1.0"
     },
     {
       "ref": "numpy==2.4.6"
@@ -4371,6 +4783,12 @@
     },
     {
       "dependsOn": [
+        "typing_extensions==4.15.0"
+      ],
+      "ref": "pathspec==1.1.1"
+    },
+    {
+      "dependsOn": [
         "coverage==7.14.0",
         "pytest==9.0.3"
       ],
@@ -4394,6 +4812,7 @@
     {
       "dependsOn": [
         "anyio==4.13.0",
+        "mypy==2.1.0",
         "pytest-cov==7.1.0",
         "pytest==9.0.3",
         "typing_extensions==4.15.0"
@@ -4403,10 +4822,12 @@
     {
       "dependsOn": [
         "anyio==4.13.0",
+        "mypy==2.1.0",
         "psycopg-binary==3.3.4",
         "psycopg-pool==3.3.1",
         "pytest-cov==7.1.0",
         "pytest==9.0.3",
+        "types-setuptools==82.0.0.20260518",
         "typing_extensions==4.15.0"
       ],
       "ref": "psycopg==3.3.4"
@@ -4529,11 +4950,16 @@
       "ref": "rlp==4.1.0"
     },
     {
+      "ref": "ruff==0.15.13"
+    },
+    {
       "dependsOn": [
         "joblib==1.5.3",
+        "mypy==2.1.0",
         "numpy==2.4.6",
         "pytest-cov==7.1.0",
         "pytest==9.0.3",
+        "ruff==0.15.13",
         "scipy==1.17.1",
         "threadpoolctl==3.6.0"
       ],
@@ -4542,9 +4968,11 @@
     {
       "dependsOn": [
         "click==8.4.0",
+        "mypy==2.1.0",
         "numpy==2.4.6",
         "pytest-cov==7.1.0",
         "pytest==9.0.3",
+        "ruff==0.15.13",
         "threadpoolctl==3.6.0",
         "typing_extensions==4.15.0"
       ],
@@ -4598,9 +5026,32 @@
     },
     {
       "dependsOn": [
+        "types-setuptools==82.0.0.20260518"
+      ],
+      "ref": "types-cffi==2.0.0.20260518"
+    },
+    {
+      "dependsOn": [
+        "cryptography==48.0.0",
+        "types-cffi==2.0.0.20260518"
+      ],
+      "ref": "types-pyOpenSSL==24.1.0.20240722"
+    },
+    {
+      "dependsOn": [
+        "cryptography==48.0.0",
+        "types-pyOpenSSL==24.1.0.20240722"
+      ],
+      "ref": "types-redis==4.6.0.20241004"
+    },
+    {
+      "dependsOn": [
         "urllib3==2.7.0"
       ],
       "ref": "types-requests==2.33.0.20260518"
+    },
+    {
+      "ref": "types-setuptools==82.0.0.20260518"
     },
     {
       "dependsOn": [
@@ -4630,7 +5081,8 @@
     },
     {
       "dependsOn": [
-        "aiohttp==3.13.5"
+        "aiohttp==3.13.5",
+        "mypy==2.1.0"
       ],
       "ref": "uvloop==0.22.1"
     },
@@ -4649,6 +5101,7 @@
         "eth-utils==6.0.0",
         "eth_abi==5.2.0",
         "hexbytes==1.3.1",
+        "mypy==2.1.0",
         "pydantic==2.13.4",
         "pytest-asyncio==1.3.0",
         "pytest==9.0.3",
@@ -4679,7 +5132,7 @@
     }
   ],
   "metadata": {
-    "timestamp": "2026-05-25T13:49:29.529586+00:00",
+    "timestamp": "2026-05-28T07:02:40.088971+00:00",
     "tools": {
       "components": [
         {
@@ -4783,7 +5236,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:f331a33e-a0e0-4c24-9228-9bd0f6d96f76",
+  "serialNumber": "urn:uuid:f8aa3e64-5b45-4cf0-85fc-125609ea8962",
   "version": 1,
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",

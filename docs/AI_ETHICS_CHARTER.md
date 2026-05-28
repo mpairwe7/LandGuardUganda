@@ -95,6 +95,11 @@ Every printed title certificate includes a footer:
 
 ## 7. Model lineage
 
+- The active model card is
+  [`docs/model-cards/fraud-scorer.md`](./model-cards/fraud-scorer.md) —
+  follows Mitchell et al. (FAT* 2019) structure, must be updated when
+  ``SCORER_VERSION``, the feature list, the rule list, or the action
+  thresholds change.
 - ``scorer_version`` is recorded on every score row. Re-scoring with the
   same version is a no-op; re-scoring with a new version creates a new row
   and a ``FRAUD_RESCORED`` audit event.

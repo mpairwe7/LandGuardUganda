@@ -78,7 +78,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         <Providers>
-          <main id="main">{children}</main>
+          {/* Skip-link target. Each route group ((public)/(app)/etc.) renders
+              its own semantic <main>, so this wrapper deliberately does NOT
+              use <main> — two <main>s on one page violates HTML5 and breaks
+              axe's skip-link audit. tabIndex=-1 makes the target
+              programmatically focusable when the skip link is activated. */}
+          <div id="main" tabIndex={-1} className="contents">
+            {children}
+          </div>
           <ServiceWorkerRegistrar />
         </Providers>
       </body>

@@ -50,7 +50,20 @@ The path is intentionally short and merit-based:
 ## Security reports
 
 **Do not open public issues for security vulnerabilities.** Send a
-signed email to `mpairwelauben75@gmail.com` (PGP key fingerprint:
-*pending publication on the GitHub profile before 2026-06-01*). We
-target ≤ 72-hour acknowledgement and a coordinated-disclosure window
-of ≤ 90 days for high-severity findings.
+signed email to `mpairwelauben75@gmail.com`. The recipient PGP key
+will live at
+[`docs/security/landguard-maintainer.asc`](./docs/security/landguard-maintainer.asc)
+once the maintainer completes the keygen ceremony documented in
+[`docs/security/KEYGEN_CEREMONY.md`](./docs/security/KEYGEN_CEREMONY.md);
+the fingerprint will replace this line on or before **2026-06-01** and
+will be cross-posted on the maintainer's GitHub profile so a forged
+in-repo key is detectable out-of-band.
+
+**Until the ceremony lands**, please send vulnerability reports with
+encrypted attachments to the same address using **age**
+([age-encryption.org](https://age-encryption.org)) against the
+maintainer's GitHub SSH keys (already published and verifiable at
+`https://github.com/mpairwe7.keys`) as a fallback.
+
+We target ≤ 72-hour acknowledgement and a coordinated-disclosure
+window of ≤ 90 days for high-severity findings.

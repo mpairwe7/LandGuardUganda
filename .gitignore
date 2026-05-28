@@ -41,6 +41,22 @@ backend/app/fraud/training/*.joblib
 *.local
 .claude/
 
+# Secrets — never committed under any circumstance. The single permitted
+# exception is the public PGP key at docs/security/landguard-maintainer.asc.
+*.private.asc
+*.private.gpg
+*-revoke-*.asc
+*.key
+id_rsa
+id_ed25519
+*.pem
+*credentials*
+*token*
+
+# Local docker-compose override (host-specific port remaps, user pinning).
+# Canonical compose stays clean; local divergence is gitignored.
+docker-compose.override.yml
+
 # Crane Cloud per-environment values (templates *.env.example are committed)
 infra/cranecloud/environments/*.env
 

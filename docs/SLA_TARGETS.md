@@ -162,5 +162,5 @@ likely to result in risk to the rights of natural persons. The runbook:
 |---|---|---|
 | §2 latency p95 | `bash scripts/load_test.sh` | `evidence/load/*/summary.json` |
 | §5 anchor breaker | `curl /readyz` | `readyz_sample.json` |
-| §1 verifier availability | `scripts/synthetic_probe.py` (TODO — pilot scope) | `evidence/probes/*.csv` |
+| §1 verifier availability | `scripts/probe_verifier.py` (single-file, stdlib-only; cron-once or long-running) | `evidence/probes/verifier-availability.csv` |
 | §7 breach notification readiness | `docs/runbooks/dppa-breach-notification.md` | runbook + 1 dry-run log |
