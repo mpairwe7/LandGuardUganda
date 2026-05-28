@@ -118,6 +118,7 @@ single module end-to-end in one sitting.
 | `request_id.py` | Echoes/assigns `X-Request-Id`; threads `request.state.request_id` |
 | `idempotency.py` | 24h Redis dedupe on mutating verbs when `Idempotency-Key` UUID-shape header present; bypasses `/healthz`/`/readyz`/`/metrics`/`/api/v1/verify` |
 | `limits.py` | slowapi `Limiter` keyed on remote address; `limit_anon`/`limit_auth`/`limit_admin`/`limit_public_verify` decorators read tiered limits from settings |
+| `security_headers.py` | (v0.2.2) HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Cross-Origin-Opener-Policy, Permissions-Policy on every response; CSP on JSON/HTML; rewrites `Server` to `landguard` so uvicorn isn't disclosed (paired with `--no-server-header` in the Dockerfile CMD) |
 
 ### 2.9 Models — `app/models/`
 
@@ -136,6 +137,7 @@ Pydantic v2 request/response schemas — one module per domain entity
 | `cache.py` | Redis singleton + in-memory fallback for `cache_get/set/setnx`; `stream_publish` for Redis streams |
 | `metrics.py` | Prometheus counters/gauges: `anchor_batches_total`, `anchor_breaker_open`, `nira_breaker_open`, `fraud_blocks_total`, `audit_failure_total`, etc. |
 | `ussd.py` | USSD session helpers (state machine, response framing) |
+| `sql.py` | (v0.2.2) `escape_like_value()` — defensive escape of `%`/`_`/`\\` in LIKE patterns used by the verifier's audit-event fallback lookup. Pairs with `ESCAPE '\\'` in the SQL clause |
 
 ### 2.11 Database migrations — `app/db/migrations/`
 
@@ -157,6 +159,7 @@ Pydantic v2 request/response schemas — one module per domain entity
 | `co_sign_daemon.py` | Auto-confirms the demo multi-sig threshold (Anvil accounts 1+2 as MoLHUD+NITA-U personas) |
 | `escalate_pending_reviews.py` | Promotes PENDING_REVIEW → AUTO_ESCALATED after 24h (cron-style) |
 | `fraud_parity_audit.py` | Quarterly demographic-parity report (district × tenure × gender flag rates) |
+| `emit_merkle_vectors.py` | (v0.2.0 Pack A) One-shot generator of the 10-case canonical Merkle fixture at `contracts/test/merkle-parity.json` |
 
 ### 2.13 Tests — `backend/tests/`
 
@@ -172,9 +175,13 @@ Pydantic v2 request/response schemas — one module per domain entity
 | `test_resilience.py` | CircuitBreaker state transitions + cooldown doubling |
 | `test_ussd.py` | USSD state machine; phone is SHA-256-hashed in audit |
 | `test_verify_endpoint.py` | Public verifier — online lookup + offline-bundle path; rate limit |
+| `test_security_headers.py` | (v0.2.2 Pack F) HSTS / X-CTO / X-Frame / Referrer-Policy / COOP / Permissions-Policy / CSP / Server-scrub contract pinned across 3 endpoints |
+| `test_like_escape.py` | (v0.2.2 Pack F) `escape_like_value()` + `ESCAPE '\\'` blocks LIKE-pattern broadening; legitimate UPIs round-trip |
+| `test_readyz_enriched.py` | (v0.2.2 Pack F) `/readyz` `.details` includes `fraud_model` + `audit_chain` shape contract |
 
 **Coverage targets**: backend ≥ 80% line via `pytest --cov=app`. Foundry
-contracts ≥ 90% line + branch via `forge coverage`.
+contracts ≥ 90% line + branch via `forge coverage`. Current backend test
+total: **51 / 51 passing** (was 32 / 32 pre-Pack-F).
 
 ---
 
@@ -186,7 +193,9 @@ contracts ≥ 90% line + branch via `forge coverage`.
 | `src/MultiSigRegistrar.sol` | 117 | k-of-n threshold (default 3-of-5); `proposalIdOf(districtId, batchId, root)` deterministic; events `ProposalCreated`/`ProposalConfirmed`/`ProposalExecuted`; reverts `NotASigner`/`AlreadyConfirmed`/`AlreadyExecuted`/`InvalidThreshold`/`InsufficientSigners` |
 | `test/LandRegistryAnchor.t.sol` | 107 | Happy path + duplicate rejection + empty-root rejection + non-registrar revert + pause behaviour + 3-leaf Merkle vector test (cross-checks Python `test_merkle_cross.py`) |
 | `test/MultiSigRegistrar.t.sol` | 89 | 3-of-5 quorum execution; non-signer rejection; double-confirm rejection; post-execution confirm rejection; direct-anchor bypass rejected |
-| `foundry.toml` | 19 | Solc 0.8.24, optimizer 200 runs; OZ remap; `[profile.ci]` boosts fuzz runs to 1024 |
+| `test/MerkleParity.t.sol` | 100 | (v0.2.0 Pack A) Loads `merkle-parity.json` via `stdJson` + `vm.readFile`; for every case (10) commits the batch then asserts `verifyProof` accepts each leaf and rejects a tampered one. Pins `schema_version` + `CASE_COUNT` so silent fixture drift fails loudly |
+| `test/merkle-parity.json` | 62 KB | Canonical fixture: 10 cases (empty, single-leaf, 2/3/4/5/8/16-leaf, permuted, real-Uganda-batch) plus a hand-derived 2-leaf case with step-by-step keccak in its `_comment` |
+| `foundry.toml` | 24 | Solc 0.8.24, optimizer 200 runs; OZ remap; `[profile.ci]` fuzz=1024; `fs_permissions = [{access="read", path="./test"}]` to let MerkleParity.t.sol read the fixture |
 | `lib/openzeppelin-contracts/` | submodule | OZ v5 (AccessControl, Pausable) |
 | `lib/forge-std/` | submodule | forge-std test helpers |
 
@@ -256,6 +265,9 @@ single EOA can call `commitBatch` directly.
 | File | Notes |
 |---|---|
 | `next.config.mjs` | `output: "standalone"`; security headers (X-Frame-Options=DENY, nosniff, strict-origin Referrer-Policy, camera=self); `/api/proxy/:path*` → `BACKEND_URL/api/:path*` |
+| `vitest.config.ts` | (v0.2.0 Pack A) `@/` alias to `./src`; node env; picks up `src/__tests__/**/*.test.ts` |
+| `src/__tests__/merkle.test.ts` | (v0.2.0 Pack A) 12 unit tests pinning every `lib/merkle.ts` exported function in isolation |
+| `src/__tests__/merkle.parity.test.ts` | (v0.2.0 Pack A) 72 assertions across the 10-case `contracts/test/merkle-parity.json` fixture — TS verifier must agree with Python + Solidity on every leaf + proof |
 | `tailwind.config.ts` | Custom palette (`guard-*`, `seal-*`, `status-*`); IBM Plex font wiring |
 | `package.json` | Next 16.2.6 (post Dependabot bump), React 19.2, Tailwind 4, zustand 5, @tanstack/react-query 5, @noble/hashes (for keccak in lib/merkle.ts), maplibre-gl + mapbox-gl-draw + turf, xstate, sonner |
 | `public/sw.js`, `public/manifest.json` | PWA: offline-cached verifier shell |
@@ -264,12 +276,27 @@ single EOA can call `commitBatch` directly.
 
 ## 5. Infrastructure & ops
 
+### 5.1 Top-level `scripts/` (cross-cutting dev/demo orchestration)
+
+| Script | Purpose |
+|---|---|
+| `generate_sbom.sh` | CycloneDX 1.5 emit + content-addressing for `evidence/sbom/` |
+| `lighthouse_ci.sh` | Headless Chrome + Lighthouse against /, /verify, /anchors, /titles |
+| `load_test.sh` | k6 perf harness |
+| `bootstrap_cranecloud.sh` | One-shot Crane Cloud app provisioner |
+| `setup_github_secrets.sh` | gh-CLI helper for DOCKERHUB_*, CRANE_CLOUD_* secrets |
+| `verify_offline.py` | (v0.2.0 Pack A) Standalone audit-grade Merkle proof verifier — stdlib + eth-utils only, ~170 LoC. Backs Public Claim 1 ("anyone, anywhere"). 48/48 proofs against `contracts/test/merkle-parity.json` |
+| `probe_verifier.py` | (v0.2.0 Pack B) Cron-runnable T1 verifier-availability SLO probe; stdlib only |
+| `probe_security_headers.sh` | (v0.2.2 Pack F) Production assertion of the six hardening headers + enriched `/readyz` shape. **23/23 PASS** on v0.2.3-server-header |
+
+### 5.2 Docker + compose
+
 | File | Purpose |
 |---|---|
 | `docker-compose.yml` | postgres (postgis 16-3.4), redis 7.4, anvil (foundry latest), contract-deploy (one-shot), co-signer (multisig profile), backend, frontend, caddy (tls profile), prometheus + grafana (monitoring profile). All services `cap_drop:[ALL]` + `no-new-privileges:true` |
 | `docker-compose.sepolia.yml` | Override: disables anvil/contract-deploy, switches backend to `BLOCKCHAIN_PROVIDER=sepolia` |
 | `Caddyfile` | TLS termination; CSP locks scripts to self, frame-ancestors=none; STS 1 year preload; routes `/api/*` `/healthz` `/readyz` `/metrics` to backend, everything else to frontend |
-| `backend/Dockerfile` | python:3.12-slim base; uv install; non-root user `landguard:10001`; healthcheck on `/healthz` |
+| `backend/Dockerfile` | python:3.12-slim base; uv install; non-root user `landguard:10001`; healthcheck on `/healthz`; `--no-server-header` so `SecurityHeadersMiddleware` is the sole authority on the `Server:` response header (v0.2.3) |
 | `frontend/Dockerfile` | Multi-stage Bun 1.1 deps→builder→runner; `output: standalone`; non-root user `landguard:10001`; healthcheck on `/api/health` |
 | `monitoring/prometheus/prometheus.yml` | Scrapes `backend:8000/metrics` every 15s |
 | `monitoring/grafana/`, `monitoring/otel/` | Empty placeholders for dashboards + OTel collector pipeline |

@@ -23,8 +23,21 @@ NITA-U security, MoLHUD ICT, civil-society observers, academic partners).
 | Pen-test scope | `docs/audit/PENTEST_SCOPE.md` | OWASP ASVS L2 scope of work for the pilot-launch external review |
 | DPPA breach runbook | `docs/runbooks/dppa-breach-notification.md` | 72-hour notification procedure (decision tree + PDPO/SMS templates) |
 | Accessibility spec | `frontend/e2e/accessibility.spec.ts` | Formal axe-core WCAG 2.2 AA assertion across six citizen-critical routes |
-| SBOM bundle | `evidence/sbom/` | CycloneDX 1.5 (backend + frontend + contracts), content-addressed |
-| Lighthouse baseline | `evidence/lighthouse/20260525T143155Z/` | Per-page perf/a11y/best-practices/SEO baseline with SUMMARY.md |
+| SBOM bundle | `evidence/sbom/` | CycloneDX 1.5 (backend + frontend + contracts), content-addressed; regenerated 2026-05-28 |
+| Lighthouse baseline | `evidence/lighthouse/20260525T143155Z/` | Pre-fix per-page perf/a11y/best-practices/SEO baseline with SUMMARY.md |
+| Lighthouse post-a11y-fix | `evidence/lighthouse/20260528T070440Z/` | Same four pages after the layout.tsx skip-link fix — Accessibility 100/100 on all four |
+| Route exercise (local) | `evidence/route-tests/20260528T073903Z/` | 43/43 backend + frontend route probes against the locally-built Docker stack |
+| Deployment regression (prod) | `evidence/deployment-tests/20260528T081451Z/` | 26/26 production route probes + per-claim narrative + the three bugs that prompted v0.2.1-prodfix |
+| Fraud-parity audit run | `evidence/fraud-parity/20260528T064946Z/` | Real `fraud_parity_audit.py` run + JSON + Markdown report (AI Ethics Charter §5 evidence) |
+| Cross-language Merkle vectors | `contracts/test/merkle-parity.json` | 10 canonical cases (incl. hand-derived) emitted by `backend/scripts/emit_merkle_vectors.py`; consumed by Python `verify_offline.py`, Vitest `merkle.parity.test.ts`, Foundry `MerkleParity.t.sol` |
+| Foundry parity test | `contracts/test/MerkleParity.t.sol` | Asserts `LandRegistryAnchor.verifyProof` matches the fixture; scoped `fs_permissions = [{access="read", path="./test"}]` in `foundry.toml` |
+| Standalone offline verifier | `scripts/verify_offline.py` | Pure-stdlib + eth-utils, ~170 LoC. Anyone with a printed title proof can verify against the on-chain root without LandGuard infra |
+| Fraud-scorer model card | `docs/model-cards/fraud-scorer.md` | Mitchell-et-al. (FAT* 2019) structure; NIST AI RMF / ISO 42001 evidence; no-auto-FREEZE invariant repeated verbatim from `worker.py` |
+| Security headers middleware | `backend/app/middleware/security_headers.py` | App-layer HSTS / X-CTO / X-Frame / Referrer-Policy / COOP / Permissions-Policy / CSP / Server-disclosure scrub. Defense-in-depth vs Caddyfile |
+| LIKE-injection escape helper | `backend/app/util/sql.py` | `escape_like_value()` + `ESCAPE '\\'` clause used at every `payload_json LIKE` site in `verify.py` / `anchors.py` / `titles.py` |
+| Maintainer PGP ceremony | `docs/security/KEYGEN_CEREMONY.md` | Reproducible procedure + threat model + revocation flow for the security-contact PGP key |
+| Synthetic verifier probe | `scripts/probe_verifier.py` | T1 SLO availability probe (stdlib only, cron-runnable) |
+| Security-headers probe | `scripts/probe_security_headers.sh` | Production assertion of the six security headers + enriched `/readyz` shape. **23 / 23 PASS** on v0.2.3-server-header |
 | Changelog | `CHANGELOG.md` | Security + dependency + audit-grade-change timeline |
 
 ## Cryptographic invariants under test
@@ -38,9 +51,14 @@ NITA-U security, MoLHUD ICT, civil-society observers, academic partners).
 2. **Cross-language Merkle agreement.** The Python ``compute_merkle_root_evm``,
    the TypeScript ``verifyMerkleProofEvm``, and the Solidity
    ``verifyProof`` MUST all accept the same (leaf, siblings, root) tuple
-   over the published fixture in ``test_merkle_cross.py``.
+   over the published canonical fixture.
+   *Single source of truth*: ``contracts/test/merkle-parity.json`` (10 cases).
    *Tested in*: ``backend/tests/test_merkle_cross.py``,
-   ``contracts/test/LandRegistryAnchor.t.sol::test_VerifyProof_ThreeLeaves``.
+   ``backend/scripts/emit_merkle_vectors.py`` (self-checks during emit),
+   ``frontend/src/__tests__/merkle.parity.test.ts`` (72 assertions),
+   ``contracts/test/MerkleParity.t.sol`` (loaded via stdJson),
+   ``scripts/verify_offline.py --parity contracts/test/merkle-parity.json``
+   (48/48 proofs). All three CI jobs gate on it (`.github/workflows/ci.yml`).
 
 3. **Multi-sig threshold.** ``LandRegistryAnchor.commitBatch`` is callable
    ONLY by the multisig once ``REGISTRAR_ROLE`` has been rotated; three

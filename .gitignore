@@ -40,6 +40,7 @@ backend/app/fraud/training/*.joblib
 .env.local
 *.local
 .claude/
+.antigravitycli/
 
 # Secrets — never committed under any circumstance. The single permitted
 # exception is the public PGP key at docs/security/landguard-maintainer.asc.

@@ -10,6 +10,13 @@
 > HTML + PNG renders are committed alongside their `.md` and `.mmd`
 > sources so a panellist can verify each diagram against its source.
 
+> **Post-submission patches:** between submission (2026-05-26) and the
+> 25 June showcase, four tagged releases have shipped against the same
+> Crane Cloud deployment via the documented CI/CD pipeline. See
+> [`POST_SUBMISSION_PATCHES.md`](./POST_SUBMISSION_PATCHES.md) for the
+> audit-grade record; the rendered .docx / .pdf / .html in this
+> directory remain the **frozen submission snapshot** as submitted.
+
 ## Contents
 
 ```

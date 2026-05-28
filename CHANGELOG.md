@@ -8,6 +8,146 @@ versioning is calendar-style (`YYYY-MM-DD`) until 1.0.
 
 ---
 
+## 2026-05-28 — Post-submission hardening cascade (Packs A → F)
+
+Four tagged releases shipped same-day, each through the documented
+build-push → deploy-cranecloud CI/CD chain. Production-verified live
+on Crane Cloud RENU-01 after each cut.
+
+### `v0.2.3-server-header` — `9678d7c`
+
+Follow-up to v0.2.2 — `scripts/probe_security_headers.sh` against the
+fresh pod showed `Server: uvicorn` still present (uvicorn's protocol
+layer overrides ASGI middleware). Dockerfile CMD now passes
+`--no-server-header` so the `SecurityHeadersMiddleware`
+`Server: landguard` value is the only one emitted. Probe now reports
+**23 / 23 hardening checks PASS** on production.
+
+### `v0.2.2-hardening` — `fbc4536` (Pack F)
+
+Defense-in-depth at the app layer. Crane Cloud serves the backend pod
+directly with no Caddy in front, so the existing Caddyfile hardening
+doesn't apply to live traffic.
+
+- **F1 SecurityHeadersMiddleware** (`backend/app/middleware/security_headers.py`).
+  Emits HSTS / X-Content-Type-Options / X-Frame-Options /
+  Referrer-Policy / Cross-Origin-Opener-Policy / Permissions-Policy on
+  every response, Content-Security-Policy on JSON/HTML responses.
+  Mirrors the Caddyfile values for parity.
+- **F2 LIKE-injection defensive escape** (`backend/app/util/sql.py`).
+  `escape_like_value()` + `ESCAPE '\'` clause applied at every
+  `payload_json LIKE` call-site introduced by the v0.2.1 verifier
+  fallback (`verify.py`, `anchors.py`, `titles.py`). UPI_REGEX
+  already prevents `%`/`_`/`\` in legitimate parcel_id values, but
+  if the regex is ever loosened, an attacker who could write a
+  parcel_id with `%` would broaden the audit-event match.
+- **F3 `/readyz` enrichment** (`backend/app/routers/health.py`). Two
+  new `.details` fields: `fraud_model` (joblib presence) and
+  `audit_chain` (per-district hash-chain walk via
+  `audit.verifier.verify_chain`). Reports each district's event
+  count + cryptographic verification result; degrades readiness
+  (200 + `degraded: true`) if any district's chain is corrupt.
+- **F4 PII-in-logs audit** (read-only). Grep'd every `logger.*` call
+  + format string; NIN appears only as `nin_hash` (sha256), phones
+  as `sha256(phone)[:8]`, owner names via the masking helper. No
+  PII in plaintext anywhere in `app/`.
+- **F5 Production probe** (`scripts/probe_security_headers.sh`).
+  Asserts each header on three representative endpoints + the
+  enriched `/readyz` fields. Returns 0 on full pass.
+- **F6 Tests** (`backend/tests/test_security_headers.py` — 12,
+  `test_like_escape.py` — 4, `test_readyz_enriched.py` — 3).
+  Backend pytest: 51 / 51 (was 32 / 32), ruff clean.
+
+### `v0.2.1-prodfix` — `4f77fdf`
+
+Three production bugs surfaced by the v0.2.0-routetest live
+regression (`evidence/deployment-tests/20260528T081451Z/`).
+
+- **Bug A — public verifier returns valid=false for every seeded
+  title.** Bootstrap seed emitted `TITLE_ISSUED` audit events with a
+  payload that omitted `title_no`. The verifier matches the audit
+  event via `payload_json LIKE '%"title_no": "..."%'` — which never
+  hit for seeded data. Forward fix: `seed.py` now writes `title_no`
+  in the payload. Backward fix: `verify.py` / `anchors.py` /
+  `titles.py` fall back to `parcel_id` lookup when the `title_no`
+  match misses. Live result on prod: all four seeded titles
+  (`MITYANA/V1/2026000{1..4}`) verify successfully without a
+  DB wipe.
+- **Bug B — `GET /api/v1/fraud/reviews` returned 500.** Seed wrote
+  review-queue rows with the legacy signal shape
+  `{rule, score (0–100), evidence}`; the runtime serialises via
+  `FraudSignalResponse {name, weight, score (0–1), explanation}`,
+  so strict pydantic validation 500'd the whole list. Forward fix:
+  `seed.py` review_plan uses the new schema with realistic weights
+  matching the canonical rule definitions in `app/fraud/rules.py`.
+  Backward fix: `_coerce_signal()` in `routers/fraud.py` maps any
+  persisted shape to the API model (rule→name, evidence→explanation,
+  rescales 0–100 → 0–1). Applied at all three signal-load
+  call-sites.
+- **Bug C — slash-in-path-param 404s.** FastAPI/Starlette's
+  segment-aware router 404'd on `GET /api/v1/{titles,parcels,
+  anchors/title}/{id}` whenever the ID contained `/` (every UPI
+  like `UG-MIT-024718/2026`, every title number like
+  `MITYANA/V1/20260001`). URL-encoding `%2F` didn't help. Fix:
+  declare those routes with the Starlette `:path` converter.
+
+### `v0.2.0-routetest` — `7f29a46` + `45d90aa`
+
+Showcase closure Packs A & B.
+
+- **Pack A — cross-language Merkle parity + offline verifier.**
+  Closes the testability gap where `frontend/src/lib/merkle.ts`
+  claimed byte-for-byte parity with Python + Solidity but had zero
+  unit tests to enforce it. New artefacts:
+  `backend/scripts/emit_merkle_vectors.py` (10 canonical cases),
+  `contracts/test/merkle-parity.json` (62 KB) +
+  `contracts/test/MerkleParity.t.sol` (Foundry parity assertion,
+  scoped `fs_permissions` for `./test`),
+  `frontend/src/__tests__/merkle.test.ts` +
+  `merkle.parity.test.ts` (84 / 84 Vitest passing locally),
+  `frontend/vitest.config.ts`,
+  `scripts/verify_offline.py` (standalone audit-grade verifier,
+  pure stdlib + eth-utils, 48 / 48 proofs verified). All three
+  language test paths wired into existing CI (`.github/workflows/ci.yml`).
+  Print stylesheet (`frontend/src/styles/print.css`) finalised
+  with print-color-adjust + no-pulse-on-print + neutralised
+  header/footer negative margins.
+- **Pack B — evidence + compliance + a11y + route tests.**
+  - `docs/model-cards/fraud-scorer.md` — Mitchell-et-al. model
+    card following NIST AI RMF / ISO 42001 structure. Linked from
+    `AI_ETHICS_CHARTER §7` and README §14b.
+  - `docs/security/{README,KEYGEN_CEREMONY}.md` + `.gitignore`
+    guards — maintainer PGP keygen ceremony documented; actual
+    keygen deferred to the maintainer.
+  - `evidence/fraud-parity/20260528T064946Z/` — real audit run
+    against 60 synthetic transfers; 2 districts hit the 1.5×
+    threshold, proving the AI Ethics Charter §5 plumbing works.
+  - `evidence/sbom/*` — regenerated as pre-showcase artefact.
+  - **Accessibility 98 → 100 on all four audited Lighthouse pages.**
+    Root cause was the skip-link target `<main id="main">` being
+    nested inside `/verify`'s Suspense bailout boundary; axe's
+    static DOM scan saw no `#main`. Moved target to a
+    layout-level `<div id="main" tabIndex={-1} className="contents">`
+    in `src/app/layout.tsx`. Bonus heading-order fix on `/anchors`
+    (h3 → h2 in `AnchorTimeline.tsx`). New evidence:
+    `evidence/lighthouse/20260528T070440Z/SUMMARY.md`.
+  - `scripts/probe_verifier.py` — single-file, stdlib-only
+    synthetic availability probe for the T1 verifier SLO.
+    `docs/SLA_TARGETS.md §10` TODO marker replaced.
+  - `evidence/route-tests/20260528T073903Z/` — 43 / 43 routes
+    pass against the locally-built Docker stack.
+
+### Production regression evidence
+
+`evidence/deployment-tests/20260528T081451Z/` — 26 / 26 backend
+routes pass on Crane Cloud production. Audit-chain integrity
+`verified: true` (14+ events). Anchor batches confirmed on
+Mityana (7+). Resilience toggles cycle cleanly; anchor flush
+during RPC-kill returns `PENDING_BREAKER_OPEN` and recovers
+without crash.
+
+---
+
 ## 2026-05-26 — CI/CD failure cascade resolved + tag-push deploy contract
 
 Five distinct pipeline failures surfaced during a single tagged-release
