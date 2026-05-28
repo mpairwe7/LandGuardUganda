@@ -9,6 +9,10 @@ via_ir = false
 remappings = [
     "@openzeppelin/=lib/openzeppelin-contracts/",
 ]
+# Allow reading the cross-language Merkle parity fixture (and any other
+# read-only test data committed under ``contracts/test/``). Scoped to the
+# test directory — no write access, no other paths.
+fs_permissions = [{ access = "read", path = "./test" }]
 
 [profile.ci]
 verbosity = 3

@@ -53,6 +53,15 @@ jobs:
       - name: Tests (pytest)
         run: uv run pytest -q --tb=short
 
+      - name: Cross-language Merkle parity (offline verifier)
+        # Run the standalone offline verifier against the canonical fixture
+        # emitted by emit_merkle_vectors.py. This is the Python half of the
+        # tri-language parity check (the other halves run in the contracts
+        # and frontend jobs). Any drift here, in MerkleParity.t.sol, or in
+        # frontend/src/__tests__/merkle.parity.test.ts breaks Public Claim 2.
+        working-directory: ${{ github.workspace }}
+        run: uv run --project backend python scripts/verify_offline.py --parity contracts/test/merkle-parity.json
+
   contracts:
     name: Contracts (Foundry)
     runs-on: ubuntu-latest
@@ -105,6 +114,12 @@ jobs:
         # already covers correctness; this step is here so the slot is
         # named and findable once ESLint is real.
         run: bun run lint
+
+      - name: Unit tests (vitest) — incl. Merkle parity
+        # Runs the TypeScript half of the cross-language Merkle parity check
+        # against contracts/test/merkle-parity.json. The matching Python and
+        # Solidity halves run in the backend and contracts jobs.
+        run: bun run test
 
       - name: Build
         run: bun run build

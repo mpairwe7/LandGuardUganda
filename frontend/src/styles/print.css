@@ -26,6 +26,17 @@
     box-shadow: none !important;
   }
 
+  /* Preserve the deep-green coat-of-arms band, gold seal, and watermark in
+     printed output — browsers strip backgrounds by default to save toner. */
+  .card-document,
+  .document-watermark,
+  .border-seal-400,
+  .bg-seal-50\/60,
+  .bg-slate-50\/60 {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* Page breaks: each title certificate is one page. */
   .print-page {
     page-break-after: always;
@@ -33,6 +44,33 @@
   }
   .print-page:last-child {
     page-break-after: auto;
+  }
+
+  /* Neutralise the on-screen negative margins on the certificate's header
+     and footer bands so they sit inside the @page margin instead of
+     bleeding past the printable area. */
+  .print-page > header,
+  .print-page > footer {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  .print-page > header { margin-top: 0 !important; }
+  .print-page > footer { margin-bottom: 0 !important; }
+
+  /* Keep data rows whole — never split a label from its value across pages. */
+  .print-page dl > div,
+  .print-page dt,
+  .print-page dd {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Stop spinner placeholders from printing as empty grey boxes when the QR
+     hasn't loaded by print time — a printed certificate without its QR is
+     misleading, so silence the skeleton's animation and fill. */
+  .animate-pulse {
+    animation: none !important;
+    background: transparent !important;
   }
 
   /* A4 portrait by default; certificate renders edge-to-edge. */

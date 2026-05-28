@@ -218,6 +218,26 @@ hook → problem → anchor (with multi-sig) → human-in-the-loop fraud review 
 audience verifies (smartphone + feature phone) → resilience. See
 [`DEMO_RUNBOOK.md`](./DEMO_RUNBOOK.md).
 
+## Verify a title offline
+
+Anyone can verify a LandGuard title proof without our backend, our frontend,
+or even chain access — just one Python file and `eth-utils`.
+
+```bash
+pip install eth-utils
+python scripts/verify_offline.py --bundle title-proof.json --root 0xabc...
+# PASS  leaf=0x...  root=0xabc...
+```
+
+The script ([`scripts/verify_offline.py`](./scripts/verify_offline.py)) inlines
+the same sorted-pair keccak rule used by
+[`LandRegistryAnchor.verifyProof`](./contracts/src/LandRegistryAnchor.sol),
+[`app/audit/merkle.py::verify_merkle_proof_evm`](./backend/app/audit/merkle.py),
+and [`lib/merkle.ts::verifyMerkleProofEvm`](./frontend/src/lib/merkle.ts).
+The four implementations are cross-checked against
+[`contracts/test/merkle-parity.json`](./contracts/test/merkle-parity.json) on
+every CI run — drift surfaces immediately.
+
 ## Security posture (highlights)
 
 - TLS via Caddy with strict CSP, STS, frame-ancestors=none.
