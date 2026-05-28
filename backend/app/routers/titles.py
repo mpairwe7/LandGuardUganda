@@ -16,6 +16,7 @@ from app.fraud.worker import enqueue_score
 from app.models.titles import TitleIssueRequest, TitleRecord
 from app.util.hashing import content_hash
 from app.util.ids import make_title_no
+from app.util.sql import escape_like_value
 
 router = APIRouter(prefix="/api/v1/titles", tags=["titles"])
 
@@ -43,10 +44,10 @@ def _attach_anchor(row) -> TitleRecord:
             "FROM anchors a "
             "WHERE a.batch_id = ("
             "  SELECT anchored_in FROM audit_events "
-            "  WHERE event_type = 'TITLE_ISSUED' AND payload_json LIKE ? "
+            "  WHERE event_type = 'TITLE_ISSUED' AND payload_json LIKE ? ESCAPE '\\' "
             "  ORDER BY seq DESC LIMIT 1"
             ")",
-            (f'%"title_no": "{title_no}"%',),
+            (f'%"title_no": "{escape_like_value(title_no)}"%',),
         ).fetchone()
         if not anchor:
             anchor = conn.execute(
@@ -54,10 +55,10 @@ def _attach_anchor(row) -> TitleRecord:
                 "FROM anchors a "
                 "WHERE a.batch_id = ("
                 "  SELECT anchored_in FROM audit_events "
-                "  WHERE event_type = 'TITLE_ISSUED' AND payload_json LIKE ? "
+                "  WHERE event_type = 'TITLE_ISSUED' AND payload_json LIKE ? ESCAPE '\\' "
                 "  ORDER BY seq DESC LIMIT 1"
                 ")",
-                (f'%"parcel_id": "{parcel_id}"%',),
+                (f'%"parcel_id": "{escape_like_value(parcel_id)}"%',),
             ).fetchone()
     return TitleRecord(
         title_no=row[0],
@@ -169,15 +170,15 @@ async def get_title(
             seq_row = conn.execute(
                 "SELECT seq FROM audit_events "
                 "WHERE tenant_id = ? AND event_type = 'TITLE_ISSUED' "
-                "AND payload_json LIKE ?",
-                (str(record.district_id), f'%"title_no": "{title_no}"%'),
+                "AND payload_json LIKE ? ESCAPE '\\'",
+                (str(record.district_id), f'%"title_no": "{escape_like_value(title_no)}"%'),
             ).fetchone()
             if not seq_row:
                 seq_row = conn.execute(
                     "SELECT seq FROM audit_events "
                     "WHERE tenant_id = ? AND event_type = 'TITLE_ISSUED' "
-                    "AND payload_json LIKE ?",
-                    (str(record.district_id), f'%"parcel_id": "{record.parcel_id}"%'),
+                    "AND payload_json LIKE ? ESCAPE '\\'",
+                    (str(record.district_id), f'%"parcel_id": "{escape_like_value(record.parcel_id)}"%'),
                 ).fetchone()
         if seq_row:
             proof = build_proof_for_event(

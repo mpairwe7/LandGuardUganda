@@ -8,6 +8,7 @@ from app.auth import Role, require_role
 from app.blockchain.anchor_service import build_proof_for_event, flush_district
 from app.database import get_connection
 from app.models.anchors import AnchorListResponse, AnchorRecord
+from app.util.sql import escape_like_value
 
 router = APIRouter(prefix="/api/v1/anchors", tags=["anchors"])
 
@@ -99,15 +100,15 @@ async def proof_for_title(
         seq_row = conn.execute(
             "SELECT seq FROM audit_events "
             "WHERE tenant_id = ? AND event_type = 'TITLE_ISSUED' "
-            "AND payload_json LIKE ?",
-            (str(district_id), f'%"title_no": "{title_no}"%'),
+            "AND payload_json LIKE ? ESCAPE '\\'",
+            (str(district_id), f'%"title_no": "{escape_like_value(title_no)}"%'),
         ).fetchone()
         if not seq_row:
             seq_row = conn.execute(
                 "SELECT seq FROM audit_events "
                 "WHERE tenant_id = ? AND event_type = 'TITLE_ISSUED' "
-                "AND payload_json LIKE ?",
-                (str(district_id), f'%"parcel_id": "{parcel_id}"%'),
+                "AND payload_json LIKE ? ESCAPE '\\'",
+                (str(district_id), f'%"parcel_id": "{escape_like_value(parcel_id)}"%'),
             ).fetchone()
     if not seq_row:
         raise HTTPException(status_code=409, detail="title not yet recorded in ledger")

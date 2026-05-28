@@ -23,6 +23,7 @@ from app.fraud.worker import consumer_loop_forever, stop_consumer
 from app.middleware.idempotency import IdempotencyMiddleware
 from app.middleware.limits import limiter
 from app.middleware.request_id import RequestIdMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.routers import (
     admin,
     anchors,
@@ -120,6 +121,10 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(RequestIdMiddleware)
+    # SecurityHeadersMiddleware runs LAST in the add_middleware order, which
+    # means OUTERMOST in the request flow — it sees every response, even
+    # those short-circuited by other middleware. Mirrors the Caddyfile.
+    app.add_middleware(SecurityHeadersMiddleware)
 
     app.include_router(health.router)
     app.include_router(verify.router)  # public, no auth

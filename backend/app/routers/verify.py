@@ -22,6 +22,7 @@ from app.blockchain.anchor_service import build_proof_for_event
 from app.database import get_connection
 from app.middleware.limits import limit_public_verify
 from app.models.verify import VerifyTitleRequest, VerifyTitleResponse
+from app.util.sql import escape_like_value
 
 router = APIRouter(prefix="/api/v1/verify", tags=["public-verify"])
 logger = logging.getLogger(__name__)
@@ -66,10 +67,10 @@ def _read_anchor_for_title(title_no: str, parcel_id: str | None = None) -> dict 
             "WHERE a.batch_id = ("
             "  SELECT anchored_in FROM audit_events "
             "  WHERE event_type = 'TITLE_ISSUED' "
-            "  AND payload_json LIKE ?"
+            "  AND payload_json LIKE ? ESCAPE '\\'"
             "  ORDER BY seq DESC LIMIT 1"
             ")",
-            (f'%"title_no": "{title_no}"%',),
+            (f'%"title_no": "{escape_like_value(title_no)}"%',),
         ).fetchone()
         if (not row or not row[0]) and parcel_id:
             row = conn.execute(
@@ -79,10 +80,10 @@ def _read_anchor_for_title(title_no: str, parcel_id: str | None = None) -> dict 
                 "WHERE a.batch_id = ("
                 "  SELECT anchored_in FROM audit_events "
                 "  WHERE event_type = 'TITLE_ISSUED' "
-                "  AND payload_json LIKE ?"
+                "  AND payload_json LIKE ? ESCAPE '\\'"
                 "  ORDER BY seq DESC LIMIT 1"
                 ")",
-                (f'%"parcel_id": "{parcel_id}"%',),
+                (f'%"parcel_id": "{escape_like_value(parcel_id)}"%',),
             ).fetchone()
     if not row or not row[0]:
         return None
@@ -107,15 +108,15 @@ def _read_event_seq_for_title(title_no: str, district_id: int, parcel_id: str | 
         row = conn.execute(
             "SELECT seq FROM audit_events "
             "WHERE tenant_id = ? AND event_type = 'TITLE_ISSUED' "
-            "AND payload_json LIKE ?",
-            (str(district_id), f'%"title_no": "{title_no}"%'),
+            "AND payload_json LIKE ? ESCAPE '\\'",
+            (str(district_id), f'%"title_no": "{escape_like_value(title_no)}"%'),
         ).fetchone()
         if not row and parcel_id:
             row = conn.execute(
                 "SELECT seq FROM audit_events "
                 "WHERE tenant_id = ? AND event_type = 'TITLE_ISSUED' "
-                "AND payload_json LIKE ?",
-                (str(district_id), f'%"parcel_id": "{parcel_id}"%'),
+                "AND payload_json LIKE ? ESCAPE '\\'",
+                (str(district_id), f'%"parcel_id": "{escape_like_value(parcel_id)}"%'),
             ).fetchone()
     return int(row[0]) if row else None
 
