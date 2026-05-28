@@ -73,7 +73,7 @@ async def get_anchor(
     return _row_to_anchor(row)
 
 
-@router.get("/title/{title_no}/proof")
+@router.get("/title/{title_no:path}/proof")
 async def proof_for_title(
     title_no: str,
 ) -> dict[str, object]:
@@ -81,20 +81,34 @@ async def proof_for_title(
     # leaf hash, the sibling-hash path, the anchor root, and the block
     # number. Verifying it requires the title number, which the caller
     # already has, so leaking it does no incremental damage.
+    #
+    # The ``:path`` converter lets title numbers with embedded slashes
+    # (e.g. ``MITYANA/V1/20260001``) survive Starlette's segment-aware
+    # router. The audit-event lookup also falls back to ``parcel_id`` so
+    # legacy seeded titles whose TITLE_ISSUED payload omitted ``title_no``
+    # still resolve correctly.
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT district_id FROM titles WHERE title_no = ?",
+            "SELECT district_id, parcel_id FROM titles WHERE title_no = ?",
             (title_no,),
         ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="title not found")
         district_id = int(row[0])
+        parcel_id = row[1]
         seq_row = conn.execute(
             "SELECT seq FROM audit_events "
             "WHERE tenant_id = ? AND event_type = 'TITLE_ISSUED' "
             "AND payload_json LIKE ?",
             (str(district_id), f'%"title_no": "{title_no}"%'),
         ).fetchone()
+        if not seq_row:
+            seq_row = conn.execute(
+                "SELECT seq FROM audit_events "
+                "WHERE tenant_id = ? AND event_type = 'TITLE_ISSUED' "
+                "AND payload_json LIKE ?",
+                (str(district_id), f'%"parcel_id": "{parcel_id}"%'),
+            ).fetchone()
     if not seq_row:
         raise HTTPException(status_code=409, detail="title not yet recorded in ledger")
     proof = build_proof_for_event(district_id=district_id, leaf_seq=int(seq_row[0]))

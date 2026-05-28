@@ -423,6 +423,12 @@ def seed_demo_extras() -> dict[str, int]:
 
         # Pending fraud reviews — three plausible signals an Officer
         # would adjudicate. Subject IDs are stable so re-runs are no-ops.
+        #
+        # Signal shape MUST match app.models.fraud.FraudSignalResponse
+        # ({name, weight, score, explanation}) — the runtime API serialises
+        # the queue via that model, so any drift here turns
+        # ``GET /api/v1/fraud/reviews`` into a 500 (pydantic validation
+        # error) which silently breaks the Officer console review queue.
         review_plan = [
             {
                 "id": "review-watchlist-bwambale",
@@ -431,8 +437,10 @@ def seed_demo_extras() -> dict[str, int]:
                 "risk_score": 92,
                 "recommended_action": "BLOCK",
                 "signals": [
-                    {"rule": "watchlist_match", "score": 70, "evidence": "Patrick Bwambale"},
-                    {"rule": "nin_forgery_suspect", "score": 22, "evidence": "NIRA returned no match"},
+                    {"name": "watchlist_name", "weight": 20, "score": 1.0,
+                     "explanation": "Owner name matches watchlist entry 'Patrick Bwambale' at 97% similarity"},
+                    {"name": "nira_kyc", "weight": 25, "score": 0.88,
+                     "explanation": "NIRA returned no match for the supplied NIN"},
                 ],
             },
             {
@@ -442,8 +450,10 @@ def seed_demo_extras() -> dict[str, int]:
                 "risk_score": 71,
                 "recommended_action": "FLAG",
                 "signals": [
-                    {"rule": "rapid_resale_window", "score": 45, "evidence": "Resale 9 days after acquisition"},
-                    {"rule": "price_below_zone_floor", "score": 26, "evidence": "0.42x median Mityana TC price"},
+                    {"name": "rapid_retransfer", "weight": 20, "score": 0.9,
+                     "explanation": "Resale 9 days after acquisition"},
+                    {"name": "consideration_anomaly", "weight": 15, "score": 0.58,
+                     "explanation": "0.42x median Mityana Town Council parcel price"},
                 ],
             },
             {
@@ -453,8 +463,10 @@ def seed_demo_extras() -> dict[str, int]:
                 "risk_score": 64,
                 "recommended_action": "FLAG",
                 "signals": [
-                    {"rule": "duplicate_nin_application", "score": 40, "evidence": "Two parcels filed under same NIN within 24h"},
-                    {"rule": "geo_distance_outlier", "score": 24, "evidence": "Mityana + Gulu in same 24h"},
+                    {"name": "nin_reuse", "weight": 15, "score": 1.0,
+                     "explanation": "Two parcels filed under the same NIN within 24 h"},
+                    {"name": "geometry_overlap", "weight": 30, "score": 0.4,
+                     "explanation": "Filings from Mityana + Gulu within a 24-hour window"},
                 ],
             },
         ]
@@ -488,12 +500,20 @@ def seed_demo_extras() -> dict[str, int]:
     # Audit events for everything we created — these will be picked up
     # by the anchor loop and produce multiple anchor batches so the
     # public timeline isn't a single row.
-    for parcel_id, owner_id, registrar_id in title_plan:
+    #
+    # Payload MUST include title_no — the public verifier (verify.py) and
+    # the title-proof endpoint (anchors.py) match anchored audit events by
+    # ``payload_json LIKE '%"title_no": "<no>"%'``. Without it, every
+    # seeded title shows verified=false / reason=title_pending_anchor even
+    # after its batch is anchored.
+    for idx, (parcel_id, owner_id, registrar_id) in enumerate(title_plan):
         if owner_id is None:
             continue
+        title_no = f"MITYANA/V1/{20260000 + idx + 1}"
         audit_emit(
             event_type="TITLE_ISSUED",
             payload={
+                "title_no": title_no,
                 "parcel_id": parcel_id,
                 "owner_id": owner_id,
                 "registrar_id": registrar_id,

@@ -1,0 +1,27 @@
+layer,method,path,expected,actual,latency_ms,ok,notes
+backend,GET,/healthz,200,200,1242.4,true,''
+backend,GET,/readyz,200,200,1236.7,true,''
+backend,GET,/metrics,200,200,1238.5,true,''
+backend,GET,/openapi.json,200,200,2233.6,true,''
+backend,GET,/docs,200,200,1236.9,true,''
+backend,GET,/api/v1/verify/sample-qr-payload,200,200,1247.7,true,''
+backend,POST,/api/v1/verify/title,200,200,1237.5,true,production\ hint\ title
+backend,POST,/api/v1/verify/title,200,200,1238.6,true,''
+backend,POST,/api/v1/ussd,200,200,1248.4,true,''
+backend,POST,/api/v1/ussd,200,200,1245.4,true,''
+backend,POST,/api/v1/sms/verify,200,200,1240.3,true,defensive\ —\ returns\ help\ text
+backend,GET,/api/v1/anchors,200,200,1254.6,true,''
+backend,GET,/api/v1/anchors/e359889e-e375-4b83-9c66-77bbfc8af9bf,200,200,1245.5,true,first\ batch
+backend,GET,/api/v1/parcels,401,401,1248.5,true,''
+backend,GET,/api/v1/titles,401,401,1251.8,true,''
+backend,GET,/api/v1/admin/audit/verify/3,401,401,1244.9,true,''
+backend,GET,/api/v1/parcels,200,200,1657.8,true,''
+backend,GET,/api/v1/titles,200,200,1254.5,true,''
+backend,POST,/api/v1/parcels/search/geo,200,200,1270.4,true,''
+backend,GET,/api/v1/demo/status,200,200,1256.7,true,''
+backend,POST,/api/v1/demo/rescore-pending,200,200,1244.1,true,''
+backend,GET,/api/v1/fraud/score/PARCEL/notscored,404,404,1244.8,true,404\ =\ no\ score\ yet\ \(correct\)
+backend,GET,/api/v1/admin/audit/verify/3,200,200,1254.1,true,audit\ chain\ walk\ on\ production
+backend,POST,/api/v1/nira/verify,200,200,1245.3,true,mock\ NIRA
+frontend,GET,/,404,404,1228.9,true,edge\ 404\ from\ non-allowlisted\ IP
+frontend,GET,/api/health,401,401,1237.0,true,edge\ 401\ from\ non-allowlisted\ IP\ —\ CI\ runner\ reports\ 200

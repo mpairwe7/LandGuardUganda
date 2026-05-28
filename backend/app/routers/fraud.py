@@ -55,7 +55,7 @@ async def get_score(
         subject_id=subject_id,
         risk_score=score["risk_score"],
         recommended_action=score["recommended_action"],
-        signals=[FraudSignalResponse(**s) for s in score["signals"]],
+        signals=[_coerce_signal(s) for s in score["signals"]],
         scored_at=score["scored_at"],
         scorer_version=score["scorer_version"],
     )
@@ -109,7 +109,7 @@ async def list_alerts(
                 subject_id=r[2],
                 risk_score=int(r[3]),
                 recommended_action=r[5],
-                signals=[FraudSignalResponse(**s) for s in signals],
+                signals=[_coerce_signal(s) for s in signals],
                 scored_at=float(r[6]),
                 scorer_version=r[7],
             )
@@ -142,6 +142,35 @@ class ReviewDecision(StrictModel):
     notes: str = Field(min_length=4, max_length=2048)
 
 
+def _coerce_signal(s: dict) -> FraudSignalResponse:
+    """Tolerant coercion from any persisted signal shape to the API model.
+
+    Older seeded rows used ``{rule, score, evidence}`` (score on a 0–100
+    scale) before the FraudSignalResponse schema settled on
+    ``{name, weight, score, explanation}`` (score 0.0–1.0). To keep the
+    Officer console review queue functional against legacy data without a
+    DB migration, map the old keys to the new ones and re-scale the
+    score. Anything that still can't be parsed yields a minimal
+    placeholder so one bad row never 500s the whole list.
+    """
+    name = s.get("name") or s.get("rule") or "unknown"
+    explanation = s.get("explanation") or s.get("evidence") or ""
+    weight = int(s["weight"]) if "weight" in s else 10
+    raw_score = s.get("score", 0.0)
+    try:
+        score_f = float(raw_score)
+    except (TypeError, ValueError):
+        score_f = 0.0
+    if score_f > 1.0:  # legacy 0–100 scale
+        score_f = score_f / 100.0
+    try:
+        return FraudSignalResponse(
+            name=str(name), weight=weight, score=score_f, explanation=str(explanation)
+        )
+    except Exception:
+        return FraudSignalResponse(name="unknown", weight=0, score=0.0, explanation="")
+
+
 def _row_to_review(row) -> ReviewItem:
     return ReviewItem(
         id=row[0],
@@ -150,7 +179,7 @@ def _row_to_review(row) -> ReviewItem:
         district_id=int(row[3]),
         risk_score=int(row[4]),
         recommended_action=row[5],
-        signals=[FraudSignalResponse(**s) for s in json.loads(row[6] or "[]")],
+        signals=[_coerce_signal(s) for s in json.loads(row[6] or "[]")],
         scorer_version=row[7],
         state=row[8],
         created_at=float(row[9]),

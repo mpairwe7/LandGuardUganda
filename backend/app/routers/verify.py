@@ -48,8 +48,16 @@ def _read_title(title_no: str) -> dict | None:
     }
 
 
-def _read_anchor_for_title(title_no: str) -> dict | None:
-    """Find the anchor that includes the audit event for this title issuance."""
+def _read_anchor_for_title(title_no: str, parcel_id: str | None = None) -> dict | None:
+    """Find the anchor that includes the audit event for this title issuance.
+
+    Primary path: match by ``"title_no"`` in the audit-event payload.
+    Fallback: when ``parcel_id`` is provided AND the primary path misses,
+    match by ``"parcel_id"`` in the payload of a ``TITLE_ISSUED`` event.
+    This rescues legacy seeded data whose TITLE_ISSUED payload omitted
+    ``title_no`` — without that fallback, every pre-fix seeded title
+    would silently fail verification.
+    """
     with get_connection() as conn:
         row = conn.execute(
             "SELECT a.batch_id, a.root_hash, a.tx_hash, a.block_number, a.anchored_at, "
@@ -63,6 +71,19 @@ def _read_anchor_for_title(title_no: str) -> dict | None:
             ")",
             (f'%"title_no": "{title_no}"%',),
         ).fetchone()
+        if (not row or not row[0]) and parcel_id:
+            row = conn.execute(
+                "SELECT a.batch_id, a.root_hash, a.tx_hash, a.block_number, a.anchored_at, "
+                "       a.confirmed_at, a.status "
+                "FROM anchors a "
+                "WHERE a.batch_id = ("
+                "  SELECT anchored_in FROM audit_events "
+                "  WHERE event_type = 'TITLE_ISSUED' "
+                "  AND payload_json LIKE ?"
+                "  ORDER BY seq DESC LIMIT 1"
+                ")",
+                (f'%"parcel_id": "{parcel_id}"%',),
+            ).fetchone()
     if not row or not row[0]:
         return None
     return {
@@ -76,7 +97,12 @@ def _read_anchor_for_title(title_no: str) -> dict | None:
     }
 
 
-def _read_event_seq_for_title(title_no: str, district_id: int) -> int | None:
+def _read_event_seq_for_title(title_no: str, district_id: int, parcel_id: str | None = None) -> int | None:
+    """Sequence number of the TITLE_ISSUED audit event for this title.
+
+    Same primary + parcel_id fallback as ``_read_anchor_for_title`` —
+    needed for proof reconstruction against legacy seeded data.
+    """
     with get_connection() as conn:
         row = conn.execute(
             "SELECT seq FROM audit_events "
@@ -84,6 +110,13 @@ def _read_event_seq_for_title(title_no: str, district_id: int) -> int | None:
             "AND payload_json LIKE ?",
             (str(district_id), f'%"title_no": "{title_no}"%'),
         ).fetchone()
+        if not row and parcel_id:
+            row = conn.execute(
+                "SELECT seq FROM audit_events "
+                "WHERE tenant_id = ? AND event_type = 'TITLE_ISSUED' "
+                "AND payload_json LIKE ?",
+                (str(district_id), f'%"parcel_id": "{parcel_id}"%'),
+            ).fetchone()
     return int(row[0]) if row else None
 
 
@@ -116,7 +149,7 @@ async def verify_title(request: Request, payload: VerifyTitleRequest) -> VerifyT
                 chain_id=None,
                 reason="title_not_found",
             )
-        anchor = _read_anchor_for_title(payload.title_no)
+        anchor = _read_anchor_for_title(payload.title_no, parcel_id=title["parcel_id"])
         if not anchor:
             return VerifyTitleResponse(
                 valid=False,
@@ -129,7 +162,7 @@ async def verify_title(request: Request, payload: VerifyTitleRequest) -> VerifyT
                 chain_id=None,
                 reason="title_pending_anchor",
             )
-        seq = _read_event_seq_for_title(payload.title_no, title["district_id"])
+        seq = _read_event_seq_for_title(payload.title_no, title["district_id"], parcel_id=title["parcel_id"])
         if seq is None:
             return VerifyTitleResponse(
                 valid=False,

@@ -90,11 +90,14 @@ async def create_parcel(
     return _row_to_parcel(row)
 
 
-@router.get("/{parcel_id}", response_model=ParcelRecord)
+@router.get("/{parcel_id:path}", response_model=ParcelRecord)
 async def get_parcel(
     parcel_id: str,
     ctx: Annotated[AuthContext, Depends(require_role(*Role))],
 ) -> ParcelRecord:
+    # ``:path`` converter — UPIs contain a ``/`` separator
+    # (e.g. ``UG-MIT-024718/2026``) which Starlette would otherwise
+    # treat as a route boundary and 404 on.
     with get_connection() as conn:
         row = conn.execute(
             "SELECT parcel_id, tenure_type, district_id, sub_county, geometry_geojson, "
