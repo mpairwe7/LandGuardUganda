@@ -36,4 +36,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=60s --retries=3 \
     CMD curl -fsS http://localhost:8000/healthz || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+# --no-server-header so uvicorn's protocol layer doesn't overwrite the
+# SecurityHeadersMiddleware "Server: landguard" header with "Server: uvicorn".
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--no-server-header"]
