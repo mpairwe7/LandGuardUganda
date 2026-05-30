@@ -56,7 +56,7 @@ jobs:
     name: ${{ matrix.app }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Validate Docker Hub secrets
         env:
