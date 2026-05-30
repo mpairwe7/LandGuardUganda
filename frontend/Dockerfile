@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1.7
-FROM oven/bun:1.1 AS deps
+FROM oven/bun:1.3 AS deps
 WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile || bun install
 
-FROM oven/bun:1.1 AS builder
+FROM oven/bun:1.3 AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -18,7 +18,7 @@ ARG NEXT_PUBLIC_BACKEND_URL=https://landguard-backend-d1e66f33.renu-01.craneclou
 ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
 RUN bun run build
 
-FROM oven/bun:1.1 AS runner
+FROM oven/bun:1.3 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
