@@ -20,10 +20,12 @@ The IsolationForest + rule combiner produces three recommendations:
 - Only a ``LAND_OFFICER`` or ``REGISTRAR`` calling ``POST
   /api/v1/fraud/review/{id}/affirm`` causes a parcel to be frozen. The
   audit chain records the reviewer's user_id and free-text notes.
-- If no human reviews within 24 hours, ``scripts/escalate_pending_reviews.py``
-  applies the recommended action under a clearly labelled
-  ``FRAUD_AUTO_ESCALATED`` event so timelines distinguish "human decided"
-  from "human did nothing".
+- If no human reviews within 24 hours, the escalation job
+  (``app.jobs.escalation``, run automatically by the in-process scheduler)
+  raises the review's priority to a supervising officer and emits a clearly
+  labelled ``FRAUD_REVIEW_ESCALATED`` event. It does **not** freeze the
+  parcel — a human must still affirm — so §8's "no custodial action without a
+  recorded human review" stays literally true even on operator inaction.
 
 A reviewer may NEVER affirm a flag they themselves filed; the resolver of a
 citizen appeal must be a different role (``AUDITOR`` or a ``REGISTRAR``
@@ -68,7 +70,8 @@ time-to-resolution.
 
 ## 5. Demographic parity audits
 
-``scripts/fraud_parity_audit.py`` runs quarterly. It compares FLAG/BLOCK
+``scripts/fraud_parity_audit.py`` runs quarterly — and automatically via the
+in-process scheduler (``app.jobs.parity``). It compares FLAG/BLOCK
 rates across:
 
 - District
@@ -79,10 +82,12 @@ Any group whose flag rate exceeds 1.5× the global mean triggers a published
 review. The audit itself emits a ``FRAUD_PARITY_AUDIT`` event so the
 audit-of-the-audit is also tamper-evident.
 
-If a parity breach is found, the affected rule's weight is set to zero
-pending root-cause analysis; the scorer continues operating with the
-remaining rules. This rollback is by design — the system fails *quiet*,
-not silent.
+If a parity breach is found, a ``FRAUD_PARITY_BREACH`` event is emitted for
+the steering committee. Because a group-level disparity cannot be
+mechanically attributed to a single rule, zeroing the implicated rule's
+weight is a governance decision (committee + independent observer), not an
+automatic one; until then the scorer keeps operating with all rules. The
+breach is loud and recorded — the system fails *quiet*, not silent.
 
 ## 6. Disclosure on the artefact
 

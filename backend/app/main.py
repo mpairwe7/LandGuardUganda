@@ -20,6 +20,7 @@ from app.bootstrap.seed import maybe_seed_on_startup
 from app.config import get_settings
 from app.database import apply_migrations, close_connections
 from app.fraud.worker import consumer_loop_forever, stop_consumer
+from app.jobs.scheduler import scheduler_loop_forever, stop_scheduler
 from app.middleware.idempotency import IdempotencyMiddleware
 from app.middleware.limits import limiter
 from app.middleware.request_id import RequestIdMiddleware
@@ -77,22 +78,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         except Exception:
             logger.exception("otel_setup_failed")
 
-    anchor_task = asyncio.create_task(anchor_loop_forever(), name="anchor-loop")
-    fraud_task = asyncio.create_task(consumer_loop_forever(), name="fraud-consumer")
+    background_tasks: list[asyncio.Task[None]] = [
+        asyncio.create_task(anchor_loop_forever(), name="anchor-loop"),
+    ]
+    if settings.run_fraud_worker:
+        background_tasks.append(
+            asyncio.create_task(consumer_loop_forever(), name="fraud-consumer")
+        )
+    if settings.run_scheduler:
+        background_tasks.append(
+            asyncio.create_task(scheduler_loop_forever(), name="scheduler")
+        )
     logger.info(
         "lifespan_started",
         extra={
             "blockchain_provider": settings.blockchain_provider,
             "nira_provider": settings.nira_provider,
+            "run_fraud_worker": settings.run_fraud_worker,
+            "run_scheduler": settings.run_scheduler,
         },
     )
     try:
         yield
     finally:
         stop_consumer()
-        anchor_task.cancel()
-        fraud_task.cancel()
-        for t in (anchor_task, fraud_task):
+        stop_scheduler()
+        for t in background_tasks:
+            t.cancel()
+        for t in background_tasks:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await t
         close_connections()
