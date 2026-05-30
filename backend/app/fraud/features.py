@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import statistics
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -29,6 +30,41 @@ def _safe_float(v: Any, default: float = 0.0) -> float:
         return default
 
 
+def _district_norm_z(district_id: Any, consideration: float, area_ha: float) -> float:
+    """Z-score of this subject's consideration-per-hectare vs. the district's
+    historical transfers.
+
+    Returns ``0.0`` when there isn't enough district data — which is exactly the
+    no-signal baseline the IsolationForest was trained to treat as "normal".
+    Previously this whole feature was hardcoded to ``0.0`` at inference while
+    the training set generated a real distribution for it, causing train/serve
+    skew; this restores the intended signal.
+    """
+    if district_id is None or consideration <= 0 or area_ha <= 0:
+        return 0.0
+    with get_connection() as conn:
+        others = [
+            float(r[0]) / max(float(r[1]), 1e-6)
+            for r in conn.execute(
+                "SELECT t.consideration, p.area_hectares "
+                "FROM transfers t JOIN parcels p ON p.parcel_id = t.parcel_id "
+                "WHERE p.district_id = ? AND t.consideration IS NOT NULL "
+                "AND t.consideration > 0 AND p.area_hectares > 0",
+                (district_id,),
+            ).fetchall()
+        ]
+    if len(others) < 5:
+        return 0.0
+    mean = statistics.mean(others)
+    stdev = statistics.pstdev(others)
+    if stdev <= 0:
+        return 0.0
+    cph = consideration / area_ha
+    z = (cph - mean) / stdev
+    # Clamp so a single wild outlier can't dominate the feature vector.
+    return max(-10.0, min(10.0, z))
+
+
 def assemble_features(context: dict[str, Any]) -> list[float]:
     """Build the 9-element feature vector for one transfer subject."""
     parcel_id = context.get("parcel_id")
@@ -39,7 +75,7 @@ def assemble_features(context: dict[str, Any]) -> list[float]:
     hours_since_last = 9999.0
     prior_parcels = 0
     prior_disputes = 0
-    norm_z = 0.0
+    norm_z = _district_norm_z(context.get("district_id"), consideration, area_ha)
     if parcel_id:
         with get_connection() as conn:
             row = conn.execute(

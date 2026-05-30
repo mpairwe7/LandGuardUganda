@@ -9,6 +9,10 @@ from typing import Literal
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Anvil account #0 private key — the dev/demo default for REGISTRAR_PRIVATE_KEY.
+# It is public and well-known; assert_prod_safety() rejects it in production.
+_ANVIL_DEV_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+
 
 class Settings(BaseSettings):
     """Environment-driven configuration.
@@ -28,6 +32,13 @@ class Settings(BaseSettings):
     app_name: str = "landguard-backend"
     log_level: str = "INFO"
     demo_mode: bool = True
+
+    # --- Background tasks ---
+    # In a multi-replica deploy these can run in a single dedicated worker
+    # process and be disabled on the API replicas (the scheduler is also
+    # leader-locked, so leaving it on every replica is safe too).
+    run_fraud_worker: bool = True
+    run_scheduler: bool = True
 
     # --- Database ---
     db_backend: Literal["sqlite", "postgres"] = "sqlite"
@@ -52,9 +63,7 @@ class Settings(BaseSettings):
     anvil_chain_id: int = 31337
     sepolia_rpc_url: str = ""
     sepolia_chain_id: int = 11155111
-    registrar_private_key: str = (
-        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-    )
+    registrar_private_key: str = _ANVIL_DEV_PRIVATE_KEY
     contract_address_file: str = "./data_store/contract_address.json"
     anchor_flush_interval_seconds: int = 300
     anchor_flush_batch_size: int = 100
@@ -135,6 +144,10 @@ class Settings(BaseSettings):
             bad.append("BLOCKCHAIN_PROVIDER=mock")
         if "development_only" in base64.b64decode(self.pii_encryption_key).decode("utf-8", "ignore"):
             bad.append("PII_ENCRYPTION_KEY")
+        if self.registrar_private_key.lower() == _ANVIL_DEV_PRIVATE_KEY:
+            bad.append("REGISTRAR_PRIVATE_KEY (Anvil dev default)")
+        if not self.multisig_enabled:
+            bad.append("MULTISIG_ENABLED=false (production requires 3-of-5 custody)")
         if bad:
             raise RuntimeError(
                 f"production configuration uses dev defaults for: {', '.join(bad)}"

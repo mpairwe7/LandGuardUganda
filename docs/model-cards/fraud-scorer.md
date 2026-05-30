@@ -1,10 +1,19 @@
 # Model Card — LandGuard Fraud Scorer
 
-**Model name:** `isoforest-rules-v1-20260620`
-**Card version:** 1.0 — drafted 2026-05-28
+**Model name:** `isoforest-rules-v2-20260530`
+**Card version:** 1.1 — drafted 2026-05-28, updated 2026-05-30 (v2 scorer)
 **Maintainer:** LandGuard Uganda (`MAINTAINERS.md`)
 **Status:** Pre-pilot baseline. Quantitative metrics in §6–§7 will be
 re-measured against the Mityana pilot after first 90 days of real data.
+
+> **v2 change (2026-05-30, no retrain):** the `district_norm_z` feature was
+> being hardcoded to `0.0` at inference while `train.py` generated a real
+> distribution for it — a train/serve skew defect. v2 computes the feature at
+> inference from district transfer history
+> (`features.py::_district_norm_z`). The IsolationForest artefact
+> (`isoforest-v1.joblib`) is unchanged — it was always trained on the correct
+> 9-feature layout. Version bumped per §7 (feature-pipeline change). Go-live
+> note: [`isoforest-rules-v2-20260530.md`](./isoforest-rules-v2-20260530.md).
 
 This card follows the structure of *Mitchell et al., Model Cards for Model
 Reporting (FAT* 2019)* — adapted to a hybrid rules + anomaly-detection
@@ -24,8 +33,9 @@ system used at low-volume, low-stakes flagging (never custodial).
 - **Features (9, in fixed order):**
   `hours_since_last_transfer`, `log1p(consideration_UGX)`,
   `log1p(area_hectares)`, `owner_age_days`, `prior_parcels_for_owner`,
-  `prior_disputes_for_owner`, `consideration_per_hectare_z_score`,
-  `hour_of_day`, `weekday`. Defined in `backend/app/fraud/features.py`.
+  `prior_disputes_for_owner`, `district_norm_z` (consideration-per-hectare
+  z-score vs district), `hour_of_day`, `weekday`. Defined in
+  `backend/app/fraud/features.py`.
 - **Rules (7):** geometry overlap (w=30), rapid re-transfer (w=20),
   NIN re-use across multiple parcels (w=15), size anomaly vs district
   median (w=10), watchlist-name fuzzy match (w=20), consideration anomaly
@@ -35,7 +45,7 @@ system used at low-volume, low-stakes flagging (never custodial).
   - `risk_score < 40` → `NONE` — audit row only, no operator action
   - `40 ≤ risk_score < 75` → `FLAG` — review queue (P3, advisory)
   - `risk_score ≥ 75` → `BLOCK` — review queue (P1, urgent)
-- **Versioning:** `SCORER_VERSION = "isoforest-rules-v1-20260620"`.
+- **Versioning:** `SCORER_VERSION = "isoforest-rules-v2-20260530"`.
   Persisted on every score; reproducibility audits join on this field.
 - **License:** MIT (model artefact ships with the source under the same
   licence as the rest of the repository).

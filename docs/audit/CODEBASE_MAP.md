@@ -80,9 +80,12 @@ single module end-to-end in one sitting.
 |---|---|
 | `rules.py` | 7 rules: `geometry_overlap` (w30), `rapid_retransfer` (w20), `nin_reuse` (w15), `size_anomaly` (w10), `watchlist_name` (w20), `consideration_anomaly` (w15), `nira_kyc` (w25). Each rule fail-safes to score=0 |
 | `features.py` | 9-feature vector for IsolationForest: hours_since_last_transfer, log1p_consideration, log1p_area, owner_age_days, prior_parcel_count, prior_dispute_count, district_norm_z, hour_of_day, weekday |
-| `scorer.py` | Combines rules with IsolationForest (ml × 60 cap); thresholds: ≥75 BLOCK, ≥40 FLAG, else NONE; `SCORER_VERSION = isoforest-rules-v1-20260620` |
-| `worker.py` | Redis-streams consumer (`stream:fraud:scoring`); writes to `fraud_review_queue`; **no parcel state change** — humans only |
+| `scorer.py` | Combines rules with IsolationForest (ml × 60 cap); thresholds: ≥75 BLOCK, ≥40 FLAG, else NONE; `SCORER_VERSION = isoforest-rules-v2-20260530` |
+| `worker.py` | Redis-streams consumer (`stream:fraud:scoring`) **+ durable `fraud_scoring_jobs` outbox sweep** (eventual scoring even if Redis was down); `score_now()` for synchronous scoring; writes to `fraud_review_queue`; **no parcel state change** — humans only. Per-process consumer name for safe multi-replica scaling |
 | `training/train.py` | One-shot model train; emits `isoforest-v1.joblib` |
+| `jobs/escalation.py` | 24h escalation — raises review priority to a supervising officer; **never freezes** (charter §1/§8) |
+| `jobs/parity.py` | Demographic parity audit + `FRAUD_PARITY_BREACH` alert on >1.5× mean |
+| `jobs/scheduler.py` | In-process, Redis-leader-locked scheduler that actually runs escalation (hourly) + parity (≈monthly) |
 
 ### 2.6 NIRA — `app/nira/`
 
@@ -157,8 +160,8 @@ Pydantic v2 request/response schemas — one module per domain entity
 | `issue_dev_tokens.py` | Mints one HS256 JWT per role for the showcase |
 | `verify_audit_chain.py` | Chain integrity report for a district |
 | `co_sign_daemon.py` | Auto-confirms the demo multi-sig threshold (Anvil accounts 1+2 as MoLHUD+NITA-U personas) |
-| `escalate_pending_reviews.py` | Promotes PENDING_REVIEW → AUTO_ESCALATED after 24h (cron-style) |
-| `fraud_parity_audit.py` | Quarterly demographic-parity report (district × tenure × gender flag rates) |
+| `escalate_pending_reviews.py` | CLI wrapper over `app.jobs.escalation`; after 24h raises a review's priority to a supervising officer (**never freezes**). Also run automatically by the in-process scheduler |
+| `fraud_parity_audit.py` | CLI wrapper over `app.jobs.parity`; demographic-parity report (district × tenure × gender flag rates) + breach alert. Also run automatically by the in-process scheduler |
 | `emit_merkle_vectors.py` | (v0.2.0 Pack A) One-shot generator of the 10-case canonical Merkle fixture at `contracts/test/merkle-parity.json` |
 
 ### 2.13 Tests — `backend/tests/`
@@ -378,8 +381,9 @@ Closed since the prior revision:
 
 Still open:
 
-- `docs/model-cards/` is empty; first model card needed at pilot
-  go-live (`isoforest-rules-v1-20260620.md`).
+- `docs/model-cards/` holds the fraud-scorer card (`fraud-scorer.md`) and
+  the v2 go-live note (`isoforest-rules-v2-20260530.md`); pilot go-live still
+  needs the two §7 sign-offs (project lead + independent reviewer).
 - `monitoring/grafana/` and `monitoring/otel/` are empty — dashboards
   and OTel collector pipeline still TODO.
 - `backend/tests/integration/` is empty; only unit tests exist today.

@@ -24,7 +24,11 @@ from app.util.metrics import fraud_blocks_total, fraud_scores_total
 
 logger = logging.getLogger(__name__)
 
-SCORER_VERSION = "isoforest-rules-v1-20260620"
+# v2 (2026-05-30): no model retrain — the `district_norm_z` feature was being
+# hardcoded to 0.0 at inference (a serving-time defect) while training used a
+# real distribution for it. v2 populates the feature, removing train/serve
+# skew. Version bumped per AI Ethics Charter §7 (feature-pipeline change).
+SCORER_VERSION = "isoforest-rules-v2-20260530"
 _MODEL_PATH = Path(__file__).resolve().parent / "training" / "isoforest-v1.joblib"
 
 _MODEL: Any | None = None

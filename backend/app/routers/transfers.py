@@ -12,8 +12,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.audit import audit_emit
 from app.auth import AuthContext, Role, require_role
 from app.database import get_connection
-from app.fraud.scorer import latest_score
-from app.fraud.worker import enqueue_score
+from app.fraud.scorer import SCORER_VERSION, latest_score
+from app.fraud.worker import enqueue_score, score_now
 from app.models.transfers import TransferCreateRequest, TransferRecord
 
 router = APIRouter(prefix="/api/v1/transfers", tags=["transfers"])
@@ -87,6 +87,15 @@ async def create_transfer(
                 district_id,
             ),
         )
+        # Transactional outbox: written in the SAME transaction as the transfer
+        # so scoring is guaranteed to be attempted even if the Redis fast-path
+        # enqueue below no-ops (Redis down). The worker sweeps this table.
+        conn.execute(
+            "INSERT INTO fraud_scoring_jobs "
+            "(id, subject_type, subject_id, state, attempts, created_at) "
+            "VALUES (?,?,?,?,?,?)",
+            (str(uuid.uuid4()), "TRANSFER", transfer_id, "PENDING", 0, now),
+        )
         conn.commit()
         row = conn.execute(
             "SELECT id, parcel_id, from_owner_id, to_owner_id, transfer_type, "
@@ -122,8 +131,18 @@ async def approve_transfer(
     row = _read_transfer(transfer_id)
     if not row:
         raise HTTPException(status_code=404, detail="transfer not found")
+    # Fail-CLOSED fraud gate: a transfer must carry a current fraud score before
+    # it can complete. If scoring never ran (Redis was down at create time, or
+    # the worker lagged), score it synchronously now rather than approving blind.
     score = latest_score("TRANSFER", transfer_id)
-    if score and score["recommended_action"] == "BLOCK":
+    if not score or score.get("scorer_version") != SCORER_VERSION:
+        score = score_now("TRANSFER", transfer_id)
+    if not score:
+        raise HTTPException(
+            status_code=503,
+            detail="fraud score unavailable; cannot approve transfer yet — retry shortly",
+        )
+    if score["recommended_action"] == "BLOCK":
         raise HTTPException(
             status_code=409,
             detail=(

@@ -6,12 +6,12 @@ Human-in-the-loop policy (see ``docs/AI_ETHICS_CHARTER.md``):
 - ``FLAG``  → write to ``fraud_review_queue`` (state PENDING_REVIEW). A Land
               Officer affirms or dismisses; no automatic parcel state change.
 - ``BLOCK`` → write to ``fraud_review_queue`` (state PENDING_REVIEW). The
-              parcel is NOT auto-frozen. If 24h pass with no human review,
-              an escalation job (``scripts/escalate_pending_reviews.py``)
-              promotes the queue entry to ``AUTO_ESCALATED`` and applies the
-              FREEZE — but the audit chain shows separate events for the
-              ML decision and the escalation, so the human-vs-machine
-              distinction is forensically clear.
+              parcel is NOT auto-frozen. If 24h pass with no human review, the
+              escalation job (``app.jobs.escalation``) raises the entry's
+              priority to a supervising officer and emits a
+              ``FRAUD_REVIEW_ESCALATED`` audit event — it NEVER freezes: a
+              human must still affirm before any parcel state change
+              (AI Ethics Charter §1/§8).
 
 The IsolationForest is NEVER the sole basis for a custodial decision. A
 plain-language explanation accompanies every alert and citizens can file an
@@ -24,6 +24,8 @@ import asyncio
 import contextlib
 import json
 import logging
+import os
+import socket
 import time
 import uuid
 from typing import Any
@@ -37,9 +39,15 @@ logger = logging.getLogger(__name__)
 
 STREAM_NAME = "stream:fraud:scoring"
 CONSUMER_GROUP = "landguard-scorers"
-CONSUMER_NAME = "scorer-1"
+# Per-process consumer name. Multiple API replicas must NOT share one name in
+# the Redis consumer group — that corrupts pending-entry ownership and acks.
+# hostname+pid makes each replica/process own its own in-flight entries.
+CONSUMER_NAME = f"scorer-{socket.gethostname()}-{os.getpid()}"
 
 _RUNNING = False
+_last_sweep = 0.0
+_SWEEP_INTERVAL_SECONDS = 15.0
+_OUTBOX_MAX_ATTEMPTS = 5
 
 
 async def enqueue_score(*, subject_type: str, subject_id: str) -> str | None:
@@ -199,11 +207,106 @@ async def _score_once(message: dict[str, Any]) -> None:
     _act_on_score(subject_type, subject_id, score.to_dict())
 
 
+def score_now(subject_type: str, subject_id: str) -> dict[str, Any] | None:
+    """Score a subject synchronously and return the persisted score dict.
+
+    Used by the durable-outbox sweep and by the fail-closed approval gate
+    (``transfers.approve_transfer``). Idempotent: if a score already exists at
+    the current ``SCORER_VERSION`` it is returned unchanged. Returns ``None``
+    only when no score exists and none can be computed (e.g. missing context).
+    """
+    prior = latest_score(subject_type, subject_id)
+    if prior and prior.get("scorer_version") == SCORER_VERSION:
+        return prior
+    context = (
+        _build_transfer_context(subject_id) if subject_type == "TRANSFER" else None
+    )
+    if context is None:
+        return prior
+    score = score_subject(context)
+    persist_score(subject_type=subject_type, subject_id=subject_id, score=score)
+    _act_on_score(subject_type, subject_id, score.to_dict())
+    return latest_score(subject_type, subject_id)
+
+
+def _finish_job(
+    job_id: str,
+    *,
+    state: str,
+    attempts: int,
+    error: str | None = None,
+    next_attempt_at: float | None = None,
+) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE fraud_scoring_jobs SET state = ?, attempts = ?, last_error = ?, "
+            "next_attempt_at = ? WHERE id = ?",
+            (state, attempts, error, next_attempt_at, job_id),
+        )
+        conn.commit()
+
+
+def sweep_scoring_outbox(limit: int = 20) -> int:
+    """Drain due rows from the durable ``fraud_scoring_jobs`` outbox.
+
+    This is the fallback that guarantees eventual scoring even if Redis was
+    unavailable when the transfer was created (the stream fast-path no-ops
+    then). :func:`score_now` is idempotent, so a row also picked up by the
+    stream consumer is harmless. Returns the number of jobs processed.
+    """
+    now = time.time()
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT id, subject_type, subject_id, attempts FROM fraud_scoring_jobs "
+            "WHERE state = 'PENDING' AND (next_attempt_at IS NULL OR next_attempt_at <= ?) "
+            "ORDER BY created_at LIMIT ?",
+            (now, limit),
+        ).fetchall()
+    processed = 0
+    for row in rows:
+        job_id, subject_type, subject_id, attempts = row[0], row[1], row[2], int(row[3] or 0)
+        try:
+            score_now(subject_type, subject_id)
+            _finish_job(job_id, state="DONE", attempts=attempts)
+            processed += 1
+        except Exception as exc:  # noqa: BLE001 — record + retry, never crash the loop
+            attempts += 1
+            if attempts >= _OUTBOX_MAX_ATTEMPTS:
+                _finish_job(job_id, state="FAILED", attempts=attempts, error=str(exc)[:500])
+                logger.error("fraud_scoring_job_failed", extra={"job_id": job_id})
+            else:
+                backoff = min(300.0, 2.0**attempts)
+                _finish_job(
+                    job_id,
+                    state="PENDING",
+                    attempts=attempts,
+                    error=str(exc)[:500],
+                    next_attempt_at=time.time() + backoff,
+                )
+    return processed
+
+
+async def _maybe_sweep_outbox() -> None:
+    """Throttled wrapper so the consumer loop sweeps the outbox at most once
+    per ``_SWEEP_INTERVAL_SECONDS`` rather than on every 1s idle tick."""
+    global _last_sweep
+    now = time.time()
+    if now - _last_sweep < _SWEEP_INTERVAL_SECONDS:
+        return
+    _last_sweep = now
+    try:
+        sweep_scoring_outbox()
+    except Exception:
+        logger.exception("fraud_outbox_sweep_error")
+
+
 async def consumer_loop_forever() -> None:
-    """Consume the Redis stream until cancelled. Best-effort: skips silently
-    if Redis is down — direct calls to :func:`enqueue_score` still work
-    (they no-op when there's no Redis) and the demo control panel can
-    force-rescore via the HTTP endpoint.
+    """Consume the Redis stream until cancelled.
+
+    The stream is the fast path. Durability does NOT depend on it: every
+    transfer also writes a row to the ``fraud_scoring_jobs`` outbox in its own
+    transaction, and this loop sweeps that outbox (:func:`sweep_scoring_outbox`)
+    so subjects are eventually scored even if Redis was down at enqueue time.
     """
     global _RUNNING
     if _RUNNING:
@@ -213,6 +316,8 @@ async def consumer_loop_forever() -> None:
         try:
             redis = await get_redis()
             if redis is None:
+                # Redis down: the durable outbox is the only path to scoring.
+                await _maybe_sweep_outbox()
                 await asyncio.sleep(2)
                 continue
             # Group already exists on warm restart → just continue.
@@ -221,6 +326,7 @@ async def consumer_loop_forever() -> None:
             entries = await redis.xreadgroup(
                 CONSUMER_GROUP, CONSUMER_NAME, {STREAM_NAME: ">"}, count=10, block=1000
             )
+            await _maybe_sweep_outbox()
             if not entries:
                 continue
             for _stream, items in entries:
