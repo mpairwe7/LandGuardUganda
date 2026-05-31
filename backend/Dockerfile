@@ -19,6 +19,13 @@ RUN uv pip install --system .
 COPY app ./app
 COPY scripts ./scripts
 
+# Bake the IsolationForest model into the image (deterministic — seed 20260620)
+# so the fraud scorer runs the full ML + rules hybrid in production instead of
+# the rules-only fallback. Build-time bake, never a download/train at container
+# start (that would race Crane Cloud's readiness probe). The artifact is
+# gitignored, so this RUN is the only thing that puts it in the image.
+RUN python scripts/train_fraud_model.py
+
 # Per mpairwe7/MLOPS_V1 Crane Cloud deployment pattern (Dockerfile.cpu
 # line 121: `mkdir -p <writable dirs> && chown -R <user>:<user> /app`).
 # Without this Crane Cloud's pod crashes immediately with PermissionError —
