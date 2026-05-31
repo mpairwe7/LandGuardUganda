@@ -8,6 +8,20 @@ versioning is calendar-style (`YYYY-MM-DD`) until 1.0.
 
 ---
 
+## 2026-05-31 — `v0.2.6-sw-cache` — service worker no longer pins a stale app shell
+
+Bug report from the live demo: `TypeError: can't access property
+"anchor_breaker", details is undefined`. The component bug (an unguarded
+`data?.details.anchor_breaker`) was already fixed in `6f65813` and is in the
+deployed bundle — the error came from the **service worker serving an outdated
+app shell**. `sw.js` had a static `CACHE_NAME` and a **cache-first** same-origin
+strategy: browsers never saw the file change across deploys, so they kept
+serving old precached HTML/JS and ran outdated code. Fix: switch same-origin
+GETs to **network-first** (cache is an offline fallback only, so deploys always
+roll out while online) and bump `CACHE_NAME` to `landguard-v2` to flush the
+stale caches once. Stale-while-revalidate for verify proofs (offline-first) is
+unchanged.
+
 ## 2026-05-31 — `v0.2.5-model-bake` — fraud model baked into the image
 
 Deploy fix found while verifying the `v0.2.4-pack-g` rollout: live `/readyz`
