@@ -8,6 +8,18 @@ versioning is calendar-style (`YYYY-MM-DD`) until 1.0.
 
 ---
 
+## 2026-05-31 — `v0.2.5-model-bake` — fraud model baked into the image
+
+Deploy fix found while verifying the `v0.2.4-pack-g` rollout: live `/readyz`
+reported `fraud_model.loaded: false`. The IsolationForest artifact
+(`isoforest-v1.joblib`) is gitignored and was never trained during the Docker
+build, so the deployed image lacked it and the scorer ran **rules-only** on the
+live demo — the IsolationForest component, and the v2 `district_norm_z` fix,
+were dormant in production. `backend/Dockerfile` now runs a deterministic
+`python scripts/train_fraud_model.py` (seed `20260620`) before the chown, so
+the full ML + rules hybrid runs in prod. Matches the ML-container rule: bake
+weights at build, never download/train at container start.
+
 ## 2026-05-31 — Pack G (fraud-integrity hardening) + dependency refresh
 
 Cut as `v0.2.4-pack-g` through the build-push → deploy-cranecloud chain.
