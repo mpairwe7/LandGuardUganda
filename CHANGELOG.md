@@ -8,6 +8,64 @@ versioning is calendar-style (`YYYY-MM-DD`) until 1.0.
 
 ---
 
+## 2026-05-31 — Pack G (fraud-integrity hardening) + dependency refresh
+
+Cut as `v0.2.4-pack-g` through the build-push → deploy-cranecloud chain.
+Backend **62 / 62** pytest, frontend **84 / 84** vitest, cross-language
+Merkle parity **48 / 48**, ruff clean.
+
+### `v0.2.4-pack-g`
+
+**Pack G — critical-gap hardening** (gap analysis beyond the published
+roadmap; PR #25):
+
+- **G1 / G8 fail-closed fraud gate.** `approve_transfer` refuses to complete
+  a transfer with no current fraud score — it scores synchronously on demand
+  rather than approving blind when the worker lagged or Redis was down. New
+  `fraud_scoring_jobs` transactional outbox (migration 003) + worker sweep
+  guarantee eventual scoring.
+- **G2 escalation never freezes.** The 24h escalation job
+  (`app/jobs/escalation.py`) now raises a review's priority to a supervising
+  officer and emits `FRAUD_REVIEW_ESCALATED` — it no longer auto-FREEZEs.
+  Reconciles AI Ethics Charter §1/§8: the no-auto-FREEZE invariant is now
+  absolute (a human is the only path to FROZEN). Migration 004 adds
+  `escalated_at`.
+- **G4 governance jobs actually run.** New replica-safe in-process scheduler
+  (`app/jobs/scheduler.py`, Redis leader-lock) runs escalation (hourly) and
+  the demographic-parity audit (`app/jobs/parity.py`, with a
+  `FRAUD_PARITY_BREACH` alert) — previously neither was scheduled anywhere.
+- **G3 worker scales horizontally.** Per-process Redis consumer name +
+  `run_fraud_worker` gate so multiple API replicas don't collide on the stream.
+- **G5 revived dead ML feature.** `district_norm_z` was hardcoded `0.0` at
+  inference (train/serve skew) — now computed from district price history.
+  `SCORER_VERSION` → `isoforest-rules-v2-20260530` (model-card + §7 go-live
+  note; artefact unchanged — it was always trained for the 9-feature layout).
+- **G6 prod-safety.** `assert_prod_safety()` now rejects the committed Anvil
+  dev signing key and single-signer custody in production.
+- **G7** 11 backend regression tests (62 total) pin the gate, the
+  escalation-never-freezes behaviour, prod-safety, the feature, and the
+  per-process consumer name.
+
+**Dependency refresh** (full Dependabot backlog cleared, every merge CI-gated):
+
+- Backend: redis 5→7.4, uvicorn 0.30→0.48, psycopg→3.3.4, pyjwt→2.13,
+  passlib→1.7.4, + backend patch-minor group. Validated: 62 pytest, app
+  import, redis async client construct.
+- Frontend: zod 3→4, recharts 2→3, vitest 2→4, typescript 5→6, eslint 9→10,
+  maplibre-gl 4→5, framer-motion 11→12, @hookform/resolvers 3→5, tailwind-merge
+  2→3 (correct Tailwind-4 pairing), react/react-dom 19.2.6, zustand 5.0.14.
+  **Dockerfile `oven/bun` 1.1→1.3** (user creation switched to
+  `groupadd`/`useradd` — the new Debian base dropped the `adduser` wrappers).
+  Validated: tsc 6 clean, vitest 84, `next build` OK, frontend Docker build green.
+- CI actions: checkout@6, setup-node@6, upload-artifact@7, build-push-action@7,
+  github-script@9. **Dropped:** the python 3.14-slim bump (breaks the asyncpg
+  build; the project stays on 3.12).
+
+> Supersedes the Pack-F-era "no new dependencies" note — this release
+> deliberately refreshes the dependency tree. The five public claims, the
+> dual-Merkle equivalence rule, and the no-auto-FREEZE invariant are unchanged
+> (G2 strengthens the latter).
+
 ## 2026-05-28 — Post-submission hardening cascade (Packs A → F)
 
 Four tagged releases shipped same-day, each through the documented

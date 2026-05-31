@@ -24,9 +24,25 @@
 | `v0.2.1-prodfix` | `4f77fdf` | Public-verifier seeded-title fix + `/fraud/reviews` 500 fix + slash-in-path-param fix (forward + backward compatible — no DB wipe needed) |
 | `v0.2.2-hardening` | `fbc4536` | Pack F: `SecurityHeadersMiddleware` (HSTS/X-CTO/X-Frame/Referrer/COOP/Permissions/CSP), LIKE-injection escape, `/readyz` enrichment (fraud_model + audit_chain) |
 | `v0.2.3-server-header` | `9678d7c` | Dockerfile `--no-server-header` so the SecurityHeadersMiddleware "Server: landguard" is the only one (uvicorn was overriding) |
+| `v0.2.4-pack-g` | PR #25, #26–#29 | Pack G fraud-integrity hardening (fail-closed approval gate, escalation-never-freezes, replica-safe scheduler, revived `district_norm_z` ML feature, prod-safety key check) + full Dependabot backlog cleared (redis 7, uvicorn 0.48, frontend majors, `oven/bun` 1.3) |
 
 Full details + commit-by-commit breakdown: **[`CHANGELOG.md`](../CHANGELOG.md)**
 (top-of-file entry covers this whole cascade).
+
+### 2026-05-31 update — `v0.2.4-pack-g`
+
+- **Active tag now `v0.2.4-pack-g`**; backend pytest **62 / 62**, frontend
+  vitest **84 / 84**, Merkle parity **48 / 48**.
+- **Pack G** closed critical gaps found in a fresh app-flow audit (beyond the
+  published roadmap): a fail-closed fraud-approval gate, an
+  escalation-never-freezes fix that makes the **no-auto-FREEZE invariant
+  absolute**, a replica-safe scheduler that actually runs the 24h escalation
+  and the quarterly parity audit, horizontal worker scaling, a revived ML
+  feature (train/serve skew), and a prod-safety check for the dev signing key.
+- **This release deliberately refreshes the dependency tree** (redis 7,
+  uvicorn 0.48, and the frontend majors incl. `oven/bun` 1.3) — it supersedes
+  the Pack-F-era "No new dependencies" note below. The five public claims and
+  the dual-Merkle equivalence rule are unchanged.
 
 ## What changed in the audit-grade artefacts
 
